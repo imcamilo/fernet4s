@@ -1,6 +1,6 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.validators.StandardValidator
+import com.github.imcamilo.checkers.DefaultChecker
 import org.scalatest.wordspec.AnyWordSpec
 
 class TokenSpec extends AnyWordSpec {
@@ -9,34 +9,34 @@ class TokenSpec extends AnyWordSpec {
 
   "when decrypt secret key and a generated token the lib " should {
 
-    def key: Option[Key] = Key(DecrEncryptedKey)
+    def key: Option[Key] = Key.deserialize(DecrEncryptedKey)
     def token: Token = Token.generate(key.get, Original)
 
     "get secret key is invoked and result and should be equal than expected" in {
       val secretKey =
         for {
-          key <- Key(DecrEncryptedKey)
+          key <- Key.deserialize(DecrEncryptedKey)
           token <- Token.fromString(Token.serialise(token))
-          fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
+          fKey <- token.validateAndDecrypt(key, DefaultChecker.validator)
         } yield fKey
 
       secretKey match {
         case Some(value) => assert(value == DecrExpected)
-        case None        =>
+        case None =>
       }
     }
 
     "get secret key is invoked and result should be equal than second expected" in {
       val secretKey =
         for {
-          key <- Key(HackEncryptedKey)
+          key <- Key.deserialize(HackEncryptedKey)
           token <- Token.fromString(Token.serialise(token))
-          fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
+          fKey <- token.validateAndDecrypt(key, DefaultChecker.validator)
         } yield fKey
       secretKey match {
 
         case Some(value) => assert(value == HackExpected)
-        case None        =>
+        case None =>
       }
     }
 

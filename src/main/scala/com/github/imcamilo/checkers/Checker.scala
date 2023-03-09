@@ -1,4 +1,4 @@
-package com.github.imcamilo.validators
+package com.github.imcamilo.checkers
 
 import com.github.imcamilo.exceptions.OutputValidationException
 import com.github.imcamilo.fernet.{Key, Token}
@@ -10,17 +10,17 @@ import java.time.{Clock, Duration, Instant, ZoneOffset}
 import java.util.function.Predicate
 import scala.util.Try;
 
-trait Validator[A] {
+trait Checker[A] {
 
-  def getClock: Clock = Clock.tickSeconds(ZoneOffset.UTC)
+  def clock: Clock = Clock.tickSeconds(ZoneOffset.UTC)
 
-  def getTimeToLive: TemporalAmount = Duration.ofSeconds(60)
+  def timeToLive: TemporalAmount = Duration.ofMinutes(30)
 
-  def getMaxClockSkew: TemporalAmount = Duration.ofSeconds(60)
+  def maxClockSkew: TemporalAmount = Duration.ofMinutes(30)
 
-  def getObjectValidator: Predicate[A] = (payload: A) => true
+  def objectChecker: Predicate[A] = (payload: A) => true
 
-  def getTransformer: Array[Byte] => A
+  def transformer: Array[Byte] => A
 
   /** Check the validity of the token then decrypt and deserialise the payload.
     *  @param key
@@ -32,14 +32,14 @@ trait Validator[A] {
     */
   def validateAndDecrypt(key: Key, token: Token): Try[A] =
     Try {
-      val now = Instant.now(getClock)
+      val now = Instant.now(clock)
       val plainText = token.validateAndDecrypt(
         key,
-        now.minus(getTimeToLive),
-        now.plus(getMaxClockSkew)
+        now.minus(timeToLive),
+        now.plus(maxClockSkew)
       )
-      val finalResponseObject = getTransformer(plainText)
-      val isObjectValid = getObjectValidator.test(finalResponseObject)
+      val finalResponseObject = transformer(plainText)
+      val isObjectValid = objectChecker.test(finalResponseObject)
       val response =
         if (isObjectValid) finalResponseObject
         else {
@@ -51,11 +51,11 @@ trait Validator[A] {
 
 }
 
-trait StringValidator extends Validator[String] {
+trait StringChecker extends Checker[String] {
 
   def getCharset: Charset = UTF_8
 
-  val getTransformer: Array[Byte] => String = (bytes: Array[Byte]) => {
+  val transformer: Array[Byte] => String = (bytes: Array[Byte]) => {
     val retval = new String(bytes, getCharset)
     val cleanedBytes = bytes.clone().map(_ => 0)
     retval
@@ -63,11 +63,14 @@ trait StringValidator extends Validator[String] {
 
 }
 
-object StandardValidator {
+object DefaultChecker {
 
-  val validator: Validator[String] = new StringValidator {
-    override def getTimeToLive: TemporalAmount = {
-      Duration.ofSeconds(Instant.MAX.getEpochSecond)
+  /**
+    * Default validator, with 1 hour of time.
+    */
+  val validator: Checker[String] = new StringChecker {
+    override def timeToLive: TemporalAmount = {
+      Duration.ofHours(1)
     }
   }
 

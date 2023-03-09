@@ -1,7 +1,7 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.WHTokenException
-import com.github.imcamilo.validators.Validator
+import com.github.imcamilo.exceptions.TokenException
+import com.github.imcamilo.checkers.Checker
 import org.slf4j.LoggerFactory
 
 import java.io._
@@ -17,20 +17,20 @@ class Token(
     val cipherText: Array[Byte],
     val hmac: Array[Byte]
 ) {
-
   private val logger = LoggerFactory.getLogger(getClass)
+  import Key._
 
   /** Check the validity of this token.
-    *  @param key
-    *    the secret key against which to validate the token
-    *  @param validator
-    *    an object that encapsulates the validation parameters (e.g. TTL). By default we are using a String validator
-    *  @tparam A
-    *    type of the validator, by default we are using WHStringValidator trait.
-    *  @return
-    *    the decrypted, deserialised payload of this token
-    */
-  def validateAndDecrypt[A](key: Key, validator: Validator[A]): Option[A] = {
+   *  @param key
+   *    the secret key against which to validate the token
+   *  @param validator
+   *    an object that encapsulates the validation parameters (e.g. TTL). By default we are using a String validator
+   *  @tparam A
+   *    type of the validator, by default we are using WHStringValidator trait.
+   *  @return
+   *    the decrypted, deserialised payload of this token
+   */
+  def validateAndDecrypt[A](key: Key, validator: Checker[A]): Option[A] = {
     validator.validateAndDecrypt(key, this) match {
       case Failure(exception) =>
         logger.error(
@@ -59,15 +59,15 @@ class Token(
       latestValidInstant: Instant
   ): Array[Byte] = {
     if (version != 0x80.toByte) {
-      throw new WHTokenException("Invalid version");
+      throw new TokenException("Invalid version");
     } else if (!timestamp.isAfter(earliestValidInstant)) {
-      throw new WHTokenException("Token is expired");
+      throw new TokenException("Token is expired");
     } else if (!timestamp.isBefore(latestValidInstant)) {
-      throw new WHTokenException(
+      throw new TokenException(
         "Token timestamp is in the future (clock skew)."
       );
     } else if (!isValidSignature(key)) {
-      throw new WHTokenException("Signature does not match.");
+      throw new TokenException("Signature does not match.");
     }
     Key.decrypt(cipherText, initializationVector, key.encryptionKey)
   }
@@ -80,42 +80,42 @@ object Token {
   private val logger = LoggerFactory.getLogger(getClass)
 
   /** Convenience method to generate a new Fernet token with a string payload.
-    *
-    *  @param key
-    *    the secret key for encrypting <em>plainText</em> and signing the token
-    *  @param plainText
-    *    the payload to embed in the token
-    *  @return
-    *    a unique Fernet token
-    */
+   *
+   *  @param key
+   *    the secret key for encrypting <em>plainText</em> and signing the token
+   *  @param plainText
+   *    the payload to embed in the token
+   *  @return
+   *    a unique Fernet token
+   */
   def generate(key: Key, plainText: String): Token = {
     generate(new SecureRandom, key, plainText)
   }
 
   /** Convenience method to generate a new Fernet token with a string payload.
-    *  @param random
-    *    a source of entropy for your application
-    *  @param key
-    *    the secret key for encrypting <em>plainText</em> and signing the token
-    *  @param plainText
-    *    the payload to embed in the token
-    *  @return
-    *    a unique Fernet token
-    */
+   *  @param random
+   *    a source of entropy for your application
+   *  @param key
+   *    the secret key for encrypting <em>plainText</em> and signing the token
+   *  @param plainText
+   *    the payload to embed in the token
+   *  @return
+   *    a unique Fernet token
+   */
   def generate(random: SecureRandom, key: Key, plainText: String): Token = {
     generate(random, key, plainText.getBytes(charset))
   }
 
   /** Generate a new Fernet token.
-    *  @param random
-    *    a source of entropy for your application
-    *  @param key
-    *    the secret key for encrypting payload and signing the token
-    *  @param payload
-    *    the unencrypted data to embed in the token
-    *  @return
-    *    a unique Fernet token
-    */
+   *  @param random
+   *    a source of entropy for your application
+   *  @param key
+   *    the secret key for encrypting payload and signing the token
+   *  @param payload
+   *    the unencrypted data to embed in the token
+   *  @return
+   *    a unique Fernet token
+   */
   def generate(random: SecureRandom, key: Key, payload: Array[Byte]): Token = {
     val initializationVector = generateInitializationVector(random)
     val cipherText =
@@ -145,9 +145,8 @@ object Token {
     ) { byteStream =>
       writeTo(byteStream, breadcrumbToken)
       return encoder.encodeToString(byteStream.toByteArray)
-    }.recover {
-      case e =>
-        throw new IllegalStateException(e.getMessage, e)
+    }.recover { case e =>
+      throw new IllegalStateException(e.getMessage, e)
     }.get
   }
 
@@ -179,17 +178,17 @@ object Token {
     val retval = new Array[Byte](numBytes)
     val bytesRead = stream.read(retval)
     if (bytesRead < numBytes)
-      throw new WHTokenException("Not enough bits to generate a Token")
+      throw new TokenException("Not enough bits to generate a Token")
     retval
   }
 
   /** Deserialise a Base64 URL Fernet token string. This does NOT validate that the token was generated using a valid
-    *  Key.
-    *  @param string
-    *    the Base 64 URL encoding of a token in the form Version | Timestamp | IV | Ciphertext | HMAC
-    *  @return
-    *    a new WHToken
-    */
+   *  Key.
+   *  @param string
+   *    the Base 64 URL encoding of a token in the form Version | Timestamp | IV | Ciphertext | HMAC
+   *  @return
+   *    a new WHToken
+   */
   def fromString(string: String): Option[Token] = {
     fromBytes(decoder.decode(string)) match {
       case Failure(exception) =>
@@ -201,15 +200,15 @@ object Token {
   }
 
   /** Read a Token from bytes. This does NOT validate that the token was generated using a valid Key.
-    *  @param bytes
-    *    a Fernet token in the form Version | Timestamp | IV | Ciphertext | HMAC
-    *  @return
-    *    a new WHToken
-    */
+   *  @param bytes
+   *    a Fernet token in the form Version | Timestamp | IV | Ciphertext | HMAC
+   *  @return
+   *    a new WHToken
+   */
   def fromBytes(bytes: Array[Byte]): Try[Token] = {
 
     if (bytes.length < minimumTokenBytes)
-      throw new WHTokenException("Not enough bits to generate a Token")
+      throw new TokenException("Not enough bits to generate a Token")
 
     val response = Using(new ByteArrayInputStream(bytes)) { inputStream =>
       Using(new DataInputStream(inputStream)) { dataStream =>
@@ -219,7 +218,7 @@ object Token {
         val cipherText = read(dataStream, bytes.length - tokenStaticBytes)
         val hmac = read(dataStream, signatureBytes)
         if (dataStream.read() != -1)
-          throw new WHTokenException("more bits found")
+          throw new TokenException("more bits found")
         Token.initializeToken(
           version,
           Instant.ofEpochSecond(timestampSeconds),
@@ -232,27 +231,27 @@ object Token {
 
     response match {
       case Success(value) => value
-      case Failure(ioe)   => throw new IllegalStateException(ioe.getMessage, ioe);
+      case Failure(ioe) => throw new IllegalStateException(ioe.getMessage, ioe);
     }
 
   }
 
   /** Initialise a new Token from raw components. No validation of the signature is performed. However, the other fields
-    *  are validated to ensure they conform to the Fernet specification. Warning: Subsequent modifications to the input
-    *  arrays will write through to this object.
-    *  @param version
-    *    The version of the Fernet token specification. Currently, only 0x80 is supported.
-    *  @param timestamp
-    *    the time the token was generated
-    *  @param initializationVector
-    *    the randomly-generated bytes used to initialise the encryption cipher
-    *  @param cipherText
-    *    the encrypted the encrypted payload
-    *  @param hmac
-    *    the signature of the token
-    *  @return
-    *    the final WHToken
-    */
+   *  are validated to ensure they conform to the Fernet specification. Warning: Subsequent modifications to the input
+   *  arrays will write through to this object.
+   *  @param version
+   *    The version of the Fernet token specification. Currently, only 0x80 is supported.
+   *  @param timestamp
+   *    the time the token was generated
+   *  @param initializationVector
+   *    the randomly-generated bytes used to initialise the encryption cipher
+   *  @param cipherText
+   *    the encrypted the encrypted payload
+   *  @param hmac
+   *    the signature of the token
+   *  @return
+   *    the final WHToken
+   */
   def initializeToken(
       version: Byte,
       timestamp: Instant,
@@ -261,17 +260,15 @@ object Token {
       hmac: Array[Byte]
   ): Token = {
     if (version != supportedVersion)
-      throw new WHTokenException("Unsupported version: " + version)
+      throw new TokenException("Unsupported version: " + version)
     if (timestamp == null)
-      throw new WHTokenException("timestamp cannot be null")
-    if (
-      initializationVector == null || initializationVector.getIV.length != initializationVectorBytes
-    )
-      throw new WHTokenException("Initialization Vector must be 128 bits")
+      throw new TokenException("timestamp cannot be null")
+    if (initializationVector == null || initializationVector.getIV.length != initializationVectorBytes)
+      throw new TokenException("Initialization Vector must be 128 bits")
     if (cipherText == null || cipherText.length % cipherTextBlockSize != 0)
-      throw new WHTokenException("Ciphertext must be a multiple of 128 bits")
+      throw new TokenException("Ciphertext must be a multiple of 128 bits")
     if (hmac == null || hmac.length != signatureBytes)
-      throw new WHTokenException("hmac must be 256 bits")
+      throw new TokenException("hmac must be 256 bits")
     new Token(version, timestamp, initializationVector, cipherText, hmac)
   }
 

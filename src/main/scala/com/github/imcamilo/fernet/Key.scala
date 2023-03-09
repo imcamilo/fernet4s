@@ -1,14 +1,10 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.{WHKeyException, WHTokenException}
+import com.github.imcamilo.exceptions.{KeyException, TokenException}
 import org.slf4j.LoggerFactory
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
-import java.security.{
-  InvalidAlgorithmParameterException,
-  InvalidKeyException,
-  NoSuchAlgorithmException
-}
+import java.security.{InvalidAlgorithmParameterException, InvalidKeyException, NoSuchAlgorithmException, SecureRandom}
 import java.time.Instant
 import java.util.Arrays.{copyOf, copyOfRange}
 import javax.crypto.Cipher.{DECRYPT_MODE, ENCRYPT_MODE}
@@ -17,12 +13,12 @@ import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 import scala.util.{Failure, Success, Try, Using}
 
 /** Create a Key from individual components.
-  *
-  *  @param signingKey
-  *    a 128-bit (16 byte) key for signing tokens.
-  *  @param encryptionKey
-  *    a 128-bit (16 byte) key for encrypting and decrypting token contents.
-  */
+ *
+ *  @param signingKey
+ *    a 128-bit (16 byte) key for signing tokens.
+ *  @param encryptionKey
+ *    a 128-bit (16 byte) key for encrypting and decrypting token contents.
+ */
 class Key(val signingKey: Array[Byte], val encryptionKey: Array[Byte])
 
 object Key {
@@ -32,15 +28,15 @@ object Key {
   import Constants._
 
   /** Encrypt a payload to embed in a Fernet token
-    *  @param payload
-    *    the raw bytes of the data to store in a token
-    *  @param initializationVector
-    *    random bytes from a high-entropy source to initialise the AES cipher
-    *  @param breadcrumbEncryptionKey
-    *    encryption key, for keeping immutable data
-    *  @return
-    *    the AES-encrypted payload. The length will always be a multiple of 16 (128 bits).
-    */
+   *  @param payload
+   *    the raw bytes of the data to store in a token
+   *  @param initializationVector
+   *    random bytes from a high-entropy source to initialise the AES cipher
+   *  @param breadcrumbEncryptionKey
+   *    encryption key, for keeping immutable data
+   *  @return
+   *    the AES-encrypted payload. The length will always be a multiple of 16 (128 bits).
+   */
   def encrypt(
       payload: Array[Byte],
       initializationVector: IvParameterSpec,
@@ -58,8 +54,7 @@ object Key {
           "Unable to access cipher " + cipherTransformation + ": " + e.getMessage,
           e
         )
-      case e @ (_: InvalidKeyException |
-          _: InvalidAlgorithmParameterException) =>
+      case e @ (_: InvalidKeyException | _: InvalidAlgorithmParameterException) =>
         // this should not happen as the key is validated ahead of time and
         // we use an algorithm guaranteed to exist
         throw new IllegalStateException(
@@ -76,14 +71,14 @@ object Key {
   }
 
   /** @param string
-    *    a Base 64 URL string in the format Signing-key (128 bits) || Encryption-key (128 bits).
-    *
-    *  Create a Key from a payload containing the signing and encryption key. Use a concatenatedKeys an array of 32 bytes
-    *  of which the first 16 is the signing key and the last 16 is the encryption/decryption key
-    *  @return
-    *    a WHKey case class from individual components.
-    */
-  def apply(string: String): Option[Key] = {
+   *    a Base 64 URL string in the format Signing-key (128 bits) || Encryption-key (128 bits).
+   *
+   *  Create a Key from a payload containing the signing and encryption key. Use a concatenatedKeys an array of 32 bytes
+   *  of which the first 16 is the signing key and the last 16 is the encryption/decryption key
+   *  @return
+   *    a WHKey case class from individual components.
+   */
+  def deserialize(string: String): Option[Key] = {
     val concatenatedKeys = decoder.decode(string)
 
     val keyInstances = Try {
@@ -91,9 +86,8 @@ object Key {
         copyOfRange(concatenatedKeys, 0, signingKeyBytes),
         copyOfRange(concatenatedKeys, signingKeyBytes, fernetKeyBytes)
       )
-    }.recover {
-      case error =>
-        throw new WHKeyException(error.getMessage)
+    }.recover { case error =>
+      throw new KeyException(error.getMessage)
     }
 
     keyInstances.flatten match {
@@ -105,6 +99,19 @@ object Key {
       case Success(keys) => Option(new Key(keys._1, keys._2))
     }
 
+  }
+
+  def generateKey(): Key = {
+    generateKey(new SecureRandom())
+  }
+
+  // TODO CONVERT TO IMMUTABLE
+  def generateKey(random: SecureRandom): Key = {
+    val signingKey = new Array[Byte](16)
+    random.nextBytes(signingKey)
+    val encryptionKey = new Array[Byte](16)
+    random.nextBytes(encryptionKey)
+    new Key(signingKey, encryptionKey)
   }
 
   def creatingKeyInstance(
@@ -131,19 +138,17 @@ object Key {
       cipherText: Array[Byte],
       breadcrumbSignKey: Array[Byte]
   ): Array[Byte] = {
-    Using(new ByteArrayOutputStream(tokenPrefixBytes + cipherText.length)) {
-      byteStream =>
-        sign(
-          version,
-          timestamp,
-          initializationVector,
-          cipherText,
-          byteStream,
-          breadcrumbSignKey
-        )
-    }.recover {
-      case e =>
-        throw new IllegalStateException(e.getMessage, e)
+    Using(new ByteArrayOutputStream(tokenPrefixBytes + cipherText.length)) { byteStream =>
+      sign(
+        version,
+        timestamp,
+        initializationVector,
+        cipherText,
+        byteStream,
+        breadcrumbSignKey
+      )
+    }.recover { case e =>
+      throw new IllegalStateException(e.getMessage, e)
     }.get
   }
 
@@ -177,9 +182,8 @@ object Key {
           // provide the HmacSHA256 algorithm.
           throw new IllegalStateException(nsae.getMessage, nsae)
       }
-    }.recover {
-      case error =>
-        throw new RuntimeException("exception sign key")
+    }.recover { case error =>
+      throw new RuntimeException("exception sign key")
     }.get
   }
 
@@ -194,20 +198,20 @@ object Key {
   }
 
   /** Decrypt the payload of a Fernet token.
-    *
-    *  <p> Warning: Do not call this unless the cipher text has first been verified. Attempting to decrypt a cipher text
-    *  that has been tampered with will leak whether or not the padding is correct and this can be used to decrypt stolen
-    *  cipher text. </p>
-    *
-    *  @param cipherText
-    *    the verified padded encrypted payload of a token. The length <em>must</em> be a multiple of 16 (128 bits).
-    *  @param initializationVector
-    *    the random bytes used in the AES encryption of the token
-    *  @param breadcrumbEncryptionKey
-    *    A breadcrumb. The Array of Bytes of the encryption key, just for immutable reasons.
-    *  @return
-    *    the decrypted payload
-    */
+   *
+   *  <p> Warning: Do not call this unless the cipher text has first been verified. Attempting to decrypt a cipher text
+   *  that has been tampered with will leak whether or not the padding is correct and this can be used to decrypt stolen
+   *  cipher text. </p>
+   *
+   *  @param cipherText
+   *    the verified padded encrypted payload of a token. The length <em>must</em> be a multiple of 16 (128 bits).
+   *  @param initializationVector
+   *    the random bytes used in the AES encryption of the token
+   *  @param breadcrumbEncryptionKey
+   *    A breadcrumb. The Array of Bytes of the encryption key, just for immutable reasons.
+   *  @return
+   *    the decrypted payload
+   */
   def decrypt(
       cipherText: Array[Byte],
       initializationVector: IvParameterSpec,
@@ -222,15 +226,14 @@ object Key {
       )
       cipher.doFinal(cipherText)
     } catch {
-      case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException |
-          _: InvalidKeyException | _: InvalidAlgorithmParameterException |
-          _: IllegalBlockSizeException) =>
+      case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException | _: InvalidKeyException |
+          _: InvalidAlgorithmParameterException | _: IllegalBlockSizeException) =>
         // this should not happen as we use an algorithm (AES) and padding
         // (PKCS5) that are guaranteed to exist.
         // in addition, we validate the encryption key and initialization vector up front
         throw new IllegalStateException(e.getMessage, e)
       case bpe: BadPaddingException =>
-        throw new WHTokenException(
+        throw new TokenException(
           "Invalid padding in token: " + bpe.getMessage + " - Bad padding exception: " + bpe
         )
     }
