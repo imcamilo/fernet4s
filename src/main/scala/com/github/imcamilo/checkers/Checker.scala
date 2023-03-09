@@ -18,7 +18,7 @@ trait Checker[A] {
 
   def maxClockSkew: TemporalAmount = Duration.ofMinutes(30)
 
-  def objectChecker: Predicate[A] = (payload: A) => true
+  def objectChecker: Predicate[A] = (_: A) => true
 
   def transformer: Array[Byte] => A
 
@@ -32,8 +32,8 @@ trait Checker[A] {
    */
   def validateAndDecrypt(key: Key, token: Token): Try[A] =
     Try {
-      val now = Instant.now(clock)
-      val plainText = token.validateAndDecrypt(
+      val now: Instant = Instant.now(clock)
+      val plainText: Array[Byte] = token.validateAndDecrypt(
         key,
         now.minus(timeToLive),
         now.plus(maxClockSkew)

@@ -1,7 +1,7 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.TokenException
 import com.github.imcamilo.checkers.Checker
+import com.github.imcamilo.exceptions.TokenException
 import org.slf4j.LoggerFactory
 
 import java.io._
@@ -17,6 +17,7 @@ class Token(
     val cipherText: Array[Byte],
     val hmac: Array[Byte]
 ) {
+
   private val logger = LoggerFactory.getLogger(getClass)
 
   /** Check the validity of this token.
@@ -32,9 +33,7 @@ class Token(
   def validateAndDecrypt[A](key: Key, validator: Checker[A]): Option[A] = {
     validator.validateAndDecrypt(key, this) match {
       case Failure(exception) =>
-        logger.error(
-          "exception validating and decrypting key - " + exception.getMessage
-        )
+        logger.error("exception validating and decrypting key - " + exception.getMessage)
         None
       case Success(value) =>
         Option(value)
@@ -42,21 +41,11 @@ class Token(
   }
 
   def isValidSignature(key: Key): Boolean = {
-    val computedHmac = Key.sign(
-      version,
-      timestamp,
-      initializationVector,
-      cipherText,
-      key.signingKey
-    )
+    val computedHmac = Key.sign(version, timestamp, initializationVector, cipherText, key.signingKey)
     MessageDigest.isEqual(hmac, computedHmac)
   }
 
-  def validateAndDecrypt(
-      key: Key,
-      earliestValidInstant: Instant,
-      latestValidInstant: Instant
-  ): Array[Byte] = {
+  def validateAndDecrypt(key: Key, earliestValidInstant: Instant, latestValidInstant: Instant): Array[Byte] = {
     if (version != 0x80.toByte) {
       throw new TokenException("Invalid version");
     } else if (!timestamp.isAfter(earliestValidInstant)) {
@@ -64,7 +53,7 @@ class Token(
     } else if (!timestamp.isBefore(latestValidInstant)) {
       throw new TokenException(
         "Token timestamp is in the future (clock skew)."
-      );
+      )
     } else if (!isValidSignature(key)) {
       throw new TokenException("Signature does not match.");
     }
@@ -117,31 +106,14 @@ object Token {
    */
   def generate(random: SecureRandom, key: Key, payload: Array[Byte]): Token = {
     val initializationVector = generateInitializationVector(random)
-    val cipherText =
-      Key.encrypt(payload, initializationVector, key.encryptionKey)
+    val cipherText = Key.encrypt(payload, initializationVector, key.encryptionKey)
     val timestamp = Instant.now
-    val hmac = Key.sign(
-      supportedVersion,
-      timestamp,
-      initializationVector,
-      cipherText,
-      key.signingKey
-    )
-    Token.initializeToken(
-      supportedVersion,
-      timestamp,
-      initializationVector,
-      cipherText,
-      hmac
-    )
+    val HMAC = Key.sign(supportedVersion, timestamp, initializationVector, cipherText, key.signingKey)
+    Token.initializeToken(supportedVersion, timestamp, initializationVector, cipherText, HMAC)
   }
 
   def serialise(breadcrumbToken: Token): String = {
-    Using(
-      new ByteArrayOutputStream(
-        tokenStaticBytes + breadcrumbToken.cipherText.length
-      )
-    ) { byteStream =>
+    Using(new ByteArrayOutputStream(tokenStaticBytes + breadcrumbToken.cipherText.length)) { byteStream =>
       writeTo(byteStream, breadcrumbToken)
       return encoder.encodeToString(byteStream.toByteArray)
     }.recover { case e =>
@@ -159,15 +131,11 @@ object Token {
     }
   }
 
-  protected def generateInitializationVector(
-      random: SecureRandom
-  ): IvParameterSpec = {
+  protected def generateInitializationVector(random: SecureRandom): IvParameterSpec = {
     new IvParameterSpec(generateInitializationVectorBytes(random))
   }
 
-  protected def generateInitializationVectorBytes(
-      random: SecureRandom
-  ): Array[Byte] = {
+  protected def generateInitializationVectorBytes(random: SecureRandom): Array[Byte] = {
     val retval = new Array[Byte](initializationVectorBytes)
     random.nextBytes(retval)
     retval
@@ -176,8 +144,7 @@ object Token {
   protected def read(stream: DataInputStream, numBytes: Int): Array[Byte] = {
     val retval = new Array[Byte](numBytes)
     val bytesRead = stream.read(retval)
-    if (bytesRead < numBytes)
-      throw new TokenException("Not enough bits to generate a Token")
+    if (bytesRead < numBytes) throw new TokenException("Not enough bits to generate a Token")
     retval
   }
 
@@ -206,8 +173,7 @@ object Token {
    */
   def fromBytes(bytes: Array[Byte]): Try[Token] = {
 
-    if (bytes.length < minimumTokenBytes)
-      throw new TokenException("Not enough bits to generate a Token")
+    if (bytes.length < minimumTokenBytes) throw new TokenException("Not enough bits to generate a Token")
 
     val response = Using(new ByteArrayInputStream(bytes)) { inputStream =>
       Using(new DataInputStream(inputStream)) { dataStream =>
@@ -216,8 +182,7 @@ object Token {
         val initializationVector = read(dataStream, initializationVectorBytes)
         val cipherText = read(dataStream, bytes.length - tokenStaticBytes)
         val hmac = read(dataStream, signatureBytes)
-        if (dataStream.read() != -1)
-          throw new TokenException("more bits found")
+        if (dataStream.read() != -1) throw new TokenException("more bits found")
         Token.initializeToken(
           version,
           Instant.ofEpochSecond(timestampSeconds),
@@ -246,7 +211,7 @@ object Token {
    *    the randomly-generated bytes used to initialise the encryption cipher
    *  @param cipherText
    *    the encrypted the encrypted payload
-   *  @param hmac
+   *  @param HMAC
    *    the signature of the token
    *  @return
    *    the final WHToken
@@ -256,7 +221,7 @@ object Token {
       timestamp: Instant,
       initializationVector: IvParameterSpec,
       cipherText: Array[Byte],
-      hmac: Array[Byte]
+      HMAC: Array[Byte]
   ): Token = {
     if (version != supportedVersion)
       throw new TokenException("Unsupported version: " + version)
@@ -266,9 +231,9 @@ object Token {
       throw new TokenException("Initialization Vector must be 128 bits")
     if (cipherText == null || cipherText.length % cipherTextBlockSize != 0)
       throw new TokenException("Ciphertext must be a multiple of 128 bits")
-    if (hmac == null || hmac.length != signatureBytes)
+    if (HMAC == null || HMAC.length != signatureBytes)
       throw new TokenException("hmac must be 256 bits")
-    new Token(version, timestamp, initializationVector, cipherText, hmac)
+    new Token(version, timestamp, initializationVector, cipherText, HMAC)
   }
 
 }

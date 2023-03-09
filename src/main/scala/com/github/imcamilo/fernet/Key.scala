@@ -42,7 +42,9 @@ object Key {
       initializationVector: IvParameterSpec,
       breadcrumbEncryptionKey: Array[Byte]
   ): Array[Byte] = {
+
     val encryptionKeySpec = getEncryptionKeySpec(breadcrumbEncryptionKey)
+
     try {
       val cipher = Cipher.getInstance(cipherTransformation)
       cipher.init(ENCRYPT_MODE, encryptionKeySpec, initializationVector)
@@ -50,23 +52,18 @@ object Key {
     } catch {
       case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException) =>
         // these should not happen as we use an algorithm (AES) and padding (PKCS5) that are guaranteed to exist
-        throw new IllegalStateException(
-          "Unable to access cipher " + cipherTransformation + ": " + e.getMessage,
-          e
-        )
+        throw new IllegalStateException("Unable to access cipher " + cipherTransformation + ": " + e.getMessage, e)
       case e @ (_: InvalidKeyException | _: InvalidAlgorithmParameterException) =>
         // this should not happen as the key is validated ahead of time and
         // we use an algorithm guaranteed to exist
         throw new IllegalStateException(
-          "Unable to initialise encryption cipher with algorithm " + encryptionKeySpec.getAlgorithm + " and format " + encryptionKeySpec.getFormat + ": " + e.getMessage,
+          "Unable to initialise encryption cipher with algorithm " + encryptionKeySpec.getAlgorithm +
+            " and format " + encryptionKeySpec.getFormat + ": " + e.getMessage,
           e
         )
       case e @ (_: IllegalBlockSizeException | _: BadPaddingException) =>
         // these should not happen as we control the block size and padding
-        throw new IllegalStateException(
-          "Unable to encrypt data: " + e.getMessage,
-          e
-        )
+        throw new IllegalStateException("Unable to encrypt data: " + e.getMessage, e)
     }
   }
 
@@ -79,7 +76,8 @@ object Key {
    *    a WHKey case class from individual components.
    */
   def deserialize(string: String): Option[Key] = {
-    val concatenatedKeys = decoder.decode(string)
+
+    val concatenatedKeys: Array[Byte] = decoder.decode(string)
 
     val keyInstances = Try {
       creatingKeyInstance(
@@ -92,9 +90,7 @@ object Key {
 
     keyInstances.flatten match {
       case Failure(exception) =>
-        logger.error(
-          "exception creating key instance - " + exception.getMessage
-        )
+        logger.error("exception creating key instance - " + exception.getMessage)
         None
       case Success(keys) => Option(new Key(keys._1, keys._2))
     }
@@ -105,19 +101,21 @@ object Key {
     generateKey(new SecureRandom())
   }
 
-  // TODO CONVERT TO IMMUTABLE
+  /** returns an instance of this case class with two immutable byte arrays representing the signing key and the
+   *  encryption key. We also use the SecureRandom.generateSeed() method to create the immutable byte arrays instead of
+   *  mutable arrays, ensuring the function is fully deterministic and free of side effects.
+   *  @param random
+   *    secure random
+   *  @return
+   *    generated Key
+   */
   def generateKey(random: SecureRandom): Key = {
-    val signingKey = new Array[Byte](16)
-    random.nextBytes(signingKey)
-    val encryptionKey = new Array[Byte](16)
-    random.nextBytes(encryptionKey)
+    val signingKey = random.generateSeed(16)
+    val encryptionKey = random.generateSeed(16)
     new Key(signingKey, encryptionKey)
   }
 
-  def creatingKeyInstance(
-      signingKey: Array[Byte],
-      encryptionKey: Array[Byte]
-  ): Try[(Array[Byte], Array[Byte])] =
+  def creatingKeyInstance(signingKey: Array[Byte], encryptionKey: Array[Byte]): Try[(Array[Byte], Array[Byte])] =
     Try {
       if (signingKey == null || signingKey.length != signingKeyBytes) {
         throw new IllegalArgumentException("Signing key must be 128 bits")
@@ -138,18 +136,13 @@ object Key {
       cipherText: Array[Byte],
       breadcrumbSignKey: Array[Byte]
   ): Array[Byte] = {
+
     Using(new ByteArrayOutputStream(tokenPrefixBytes + cipherText.length)) { byteStream =>
-      sign(
-        version,
-        timestamp,
-        initializationVector,
-        cipherText,
-        byteStream,
-        breadcrumbSignKey
-      )
+      sign(version, timestamp, initializationVector, cipherText, byteStream, breadcrumbSignKey)
     }.recover { case e =>
       throw new IllegalStateException(e.getMessage, e)
     }.get
+
   }
 
   def sign(
@@ -185,15 +178,14 @@ object Key {
     }.recover { case error =>
       throw new RuntimeException("exception sign key")
     }.get
+
   }
 
   def getSigningKeySpec(breadcrumbSigningKey: Array[Byte]): SecretKeySpec = {
     new SecretKeySpec(breadcrumbSigningKey, signingAlgorithm)
   }
 
-  def getEncryptionKeySpec(
-      breadcrumbEncryptionKey: Array[Byte]
-  ): SecretKeySpec = {
+  def getEncryptionKeySpec(breadcrumbEncryptionKey: Array[Byte]): SecretKeySpec = {
     new SecretKeySpec(breadcrumbEncryptionKey, encryptionAlgorithm)
   }
 
@@ -219,11 +211,7 @@ object Key {
   ): Array[Byte] = {
     try {
       val cipher = Cipher.getInstance(cipherTransformation)
-      cipher.init(
-        DECRYPT_MODE,
-        getEncryptionKeySpec(breadcrumbEncryptionKey),
-        initializationVector
-      )
+      cipher.init(DECRYPT_MODE, getEncryptionKeySpec(breadcrumbEncryptionKey), initializationVector)
       cipher.doFinal(cipherText)
     } catch {
       case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException | _: InvalidKeyException |
