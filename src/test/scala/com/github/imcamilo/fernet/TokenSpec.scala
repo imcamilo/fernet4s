@@ -17,7 +17,7 @@ class TokenSpec extends AnyWordSpec {
         for {
           key <- Key.deserialize(DecrEncryptedKey)
           token <- Token.fromString(Token.serialise(token))
-          fKey <- token.validateAndDecrypt(key, DefaultChecker.validator)
+          fKey <- token.validateAndDecrypt(key, DefaultChecker.timeChecker)
         } yield fKey
 
       secretKey match {
@@ -31,7 +31,7 @@ class TokenSpec extends AnyWordSpec {
         for {
           key <- Key.deserialize(HackEncryptedKey)
           token <- Token.fromString(Token.serialise(token))
-          fKey <- token.validateAndDecrypt(key, DefaultChecker.validator)
+          fKey <- token.validateAndDecrypt(key, DefaultChecker.timeChecker)
         } yield fKey
       secretKey match {
 

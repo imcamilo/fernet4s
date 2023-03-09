@@ -23,13 +23,13 @@ trait Checker[A] {
   def transformer: Array[Byte] => A
 
   /** Check the validity of the token then decrypt and deserialise the payload.
-    *  @param key
-    *    the stored shared secret key
-    *  @param token
-    *    the client-provided token of unknown validity
-    *  @return
-    *    the deserialized contents of the token
-    */
+   *  @param key
+   *    the stored shared secret key
+   *  @param token
+   *    the client-provided token of unknown validity
+   *  @return
+   *    the deserialized contents of the token
+   */
   def validateAndDecrypt(key: Key, token: Token): Try[A] =
     Try {
       val now = Instant.now(clock)
@@ -65,10 +65,9 @@ trait StringChecker extends Checker[String] {
 
 object DefaultChecker {
 
-  /**
-    * Default validator, with 1 hour of time.
-    */
-  val validator: Checker[String] = new StringChecker {
+  /** Default validator, with 1 hour of time.
+   */
+  val timeChecker: Checker[String] = new StringChecker {
     override def timeToLive: TemporalAmount = {
       Duration.ofHours(1)
     }

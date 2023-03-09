@@ -24,7 +24,7 @@ val key = Key.generateKey(customRandom);
 ##### Deserialize an existing key:
 
 ````scala
-val key = new Key("cw_0x689RpI-jtRR7oE8h_eQsKImvJapLeSbXpwF4e4=");
+val key = new Key.deserialize("cw_0x689RpI-jtRR7oE8h_eQsKImvJapLeSbXpwF4e4=");
 ````
 Create a token:
 
@@ -45,8 +45,7 @@ val token = Token.fromString("gAAAAAAdwJ6wAAECAwQFBgcICQoLDA0ODy021cpGVWKZ_eEwCG
 
 Validate the token, by default fernet4s use an String validator located in:
 
-````scala
-val checker = new Checker() 
+````scala 
 val  payload = token.validateAndDecrypt(key, checker);
 ````
 
@@ -58,10 +57,8 @@ expects.
 ##### Use a custom time-to-live:
 
 ````scala
-val validator: Checker[String] = new StringChecker {
-  override def timeToLive: TemporalAmount = {
-    Duration.ofHours(2)
-  }
+val simpleChecker: Checker[String] = new StringChecker {
+  override def timeToLive: TemporalAmount = Duration.ofSeconds(60)
 }
 ````
 

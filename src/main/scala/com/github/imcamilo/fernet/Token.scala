@@ -18,7 +18,6 @@ class Token(
     val hmac: Array[Byte]
 ) {
   private val logger = LoggerFactory.getLogger(getClass)
-  import Key._
 
   /** Check the validity of this token.
    *  @param key
