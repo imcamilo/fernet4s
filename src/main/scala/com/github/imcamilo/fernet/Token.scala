@@ -181,14 +181,14 @@ object Token {
         val timestampSeconds = dataStream.readLong
         val initializationVector = read(dataStream, initializationVectorBytes)
         val cipherText = read(dataStream, bytes.length - tokenStaticBytes)
-        val hmac = read(dataStream, signatureBytes)
+        val HMAC = read(dataStream, signatureBytes)
         if (dataStream.read() != -1) throw new TokenException("more bits found")
         Token.initializeToken(
           version,
           Instant.ofEpochSecond(timestampSeconds),
           new IvParameterSpec(initializationVector),
           cipherText,
-          hmac
+          HMAC
         )
       }
     }

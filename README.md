@@ -24,23 +24,23 @@ val key = Key.generateKey(customRandom);
 ##### Deserialize an existing key:
 
 ````scala
-val key = new Key.deserialize("cw_0x689RpI-jtRR7oE8h_eQsKImvJapLeSbXpwF4e4=");
+val key = new Key.deserialize("wz5hami-yvr3zHyzVEiOYFvN9kTzXRW3dP7NcUr9Nvs=");
 ````
 Create a token:
 
 ````scala
-val token = Token.generate(key, "secret message");
+val token = Token.generate(key, "hackable_key_for_bad_people");
 ````
 or
 
 ````scala
-val token = Token.generate(customRandom, key, "secret message");
+val token = Token.generate(customRandom, key, "hackable_key_for_bad_people");
 ````
 
 ##### Deserialize an existing token:
 
 ````scala
-val token = Token.fromString("gAAAAAAdwJ6wAAECAwQFBgcICQoLDA0ODy021cpGVWKZ_eEwCGM4BLLF_5CV9dOPmrhuVUPgJobwOz7JcbmrR64jVmpU4IwqDA==");
+val token = Token.fromString("gAAAAABhDDN4i36Z-MGugoIpfN6Xij5pWesWOFY0Jj-Gv3rK46uWMo1y3UuhqknT-bUIS5n0zyBtZq05UNR0j88x91FyXBFMDFz_nR1zFmpUeM6X3-OiFb0=");
 ````
 
 Validate the token, by default fernet4s use an String validator located in:
