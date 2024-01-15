@@ -12,11 +12,13 @@ import scala.util.Try;
 
 trait Validator[A] {
 
+  private val sixtySecs = Duration.ofSeconds(60)
+
   def getClock: Clock = Clock.tickSeconds(ZoneOffset.UTC)
 
-  def getTimeToLive: TemporalAmount = Duration.ofSeconds(60)
+  def getTimeToLive: TemporalAmount = sixtySecs
 
-  def getMaxClockSkew: TemporalAmount = Duration.ofSeconds(60)
+  def getMaxClockSkew: TemporalAmount = sixtySecs
 
   def getObjectValidator: Predicate[A] = (payload: A) => true
 

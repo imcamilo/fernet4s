@@ -1,6 +1,6 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.WHTokenException
+import com.github.imcamilo.exceptions.Token4sException
 import com.github.imcamilo.validators.Validator
 import org.slf4j.LoggerFactory
 
@@ -59,15 +59,15 @@ class Token(
       latestValidInstant: Instant
   ): Array[Byte] = {
     if (version != 0x80.toByte) {
-      throw new WHTokenException("Invalid version");
+      throw new Token4sException("Invalid version");
     } else if (!timestamp.isAfter(earliestValidInstant)) {
-      throw new WHTokenException("Token is expired");
+      throw new Token4sException("Token is expired");
     } else if (!timestamp.isBefore(latestValidInstant)) {
-      throw new WHTokenException(
+      throw new Token4sException(
         "Token timestamp is in the future (clock skew)."
       );
     } else if (!isValidSignature(key)) {
-      throw new WHTokenException("Signature does not match.");
+      throw new Token4sException("Signature does not match.");
     }
     Key.decrypt(cipherText, initializationVector, key.encryptionKey)
   }
@@ -88,8 +88,8 @@ object Token {
     *  @return
     *    a unique Fernet token
     */
-  def generate(key: Key, plainText: String): Token = {
-    generate(new SecureRandom, key, plainText)
+  def apply(key: Key, plainText: String): Option[Token] = {
+    apply(new SecureRandom, key, plainText)
   }
 
   /** Convenience method to generate a new Fernet token with a string payload.
@@ -102,8 +102,12 @@ object Token {
     *  @return
     *    a unique Fernet token
     */
-  def generate(random: SecureRandom, key: Key, plainText: String): Token = {
-    generate(random, key, plainText.getBytes(charset))
+  def apply(
+      random: SecureRandom,
+      key: Key,
+      plainText: String
+  ): Option[Token] = {
+    apply(random, key, plainText.getBytes(charset))
   }
 
   /** Generate a new Fernet token.
@@ -116,7 +120,11 @@ object Token {
     *  @return
     *    a unique Fernet token
     */
-  def generate(random: SecureRandom, key: Key, payload: Array[Byte]): Token = {
+  def apply(
+      random: SecureRandom,
+      key: Key,
+      payload: Array[Byte]
+  ): Option[Token] = {
     val initializationVector = generateInitializationVector(random)
     val cipherText =
       Key.encrypt(payload, initializationVector, key.encryptionKey)
@@ -128,12 +136,14 @@ object Token {
       cipherText,
       key.signingKey
     )
-    Token.initializeToken(
-      supportedVersion,
-      timestamp,
-      initializationVector,
-      cipherText,
-      hmac
+    Option(
+      Token.initializeToken(
+        supportedVersion,
+        timestamp,
+        initializationVector,
+        cipherText,
+        hmac
+      )
     )
   }
 
@@ -179,7 +189,7 @@ object Token {
     val retval = new Array[Byte](numBytes)
     val bytesRead = stream.read(retval)
     if (bytesRead < numBytes)
-      throw new WHTokenException("Not enough bits to generate a Token")
+      throw new Token4sException("Not enough bits to generate a Token")
     retval
   }
 
@@ -209,7 +219,7 @@ object Token {
   def fromBytes(bytes: Array[Byte]): Try[Token] = {
 
     if (bytes.length < minimumTokenBytes)
-      throw new WHTokenException("Not enough bits to generate a Token")
+      throw new Token4sException("Not enough bits to generate a Token")
 
     val response = Using(new ByteArrayInputStream(bytes)) { inputStream =>
       Using(new DataInputStream(inputStream)) { dataStream =>
@@ -219,7 +229,7 @@ object Token {
         val cipherText = read(dataStream, bytes.length - tokenStaticBytes)
         val hmac = read(dataStream, signatureBytes)
         if (dataStream.read() != -1)
-          throw new WHTokenException("more bits found")
+          throw new Token4sException("more bits found")
         Token.initializeToken(
           version,
           Instant.ofEpochSecond(timestampSeconds),
@@ -261,17 +271,17 @@ object Token {
       hmac: Array[Byte]
   ): Token = {
     if (version != supportedVersion)
-      throw new WHTokenException("Unsupported version: " + version)
+      throw new Token4sException("Unsupported version: " + version)
     if (timestamp == null)
-      throw new WHTokenException("timestamp cannot be null")
+      throw new Token4sException("timestamp cannot be null")
     if (
       initializationVector == null || initializationVector.getIV.length != initializationVectorBytes
     )
-      throw new WHTokenException("Initialization Vector must be 128 bits")
+      throw new Token4sException("Initialization Vector must be 128 bits")
     if (cipherText == null || cipherText.length % cipherTextBlockSize != 0)
-      throw new WHTokenException("Ciphertext must be a multiple of 128 bits")
+      throw new Token4sException("Ciphertext must be a multiple of 128 bits")
     if (hmac == null || hmac.length != signatureBytes)
-      throw new WHTokenException("hmac must be 256 bits")
+      throw new Token4sException("hmac must be 256 bits")
     new Token(version, timestamp, initializationVector, cipherText, hmac)
   }
 

@@ -7,16 +7,16 @@ class TokenSpec extends AnyWordSpec {
 
   import TokenSpec._
 
-  "when decrypt secret key and a generated token the lib " should {
+  "when decrypting secret key and a generated token the lib " should {
 
     def key: Option[Key] = Key(DecrEncryptedKey)
-    def token: Token = Token.generate(key.get, Original)
+    def token: Option[Token] = Token(key.get, Original)
 
     "get secret key is invoked and result and should be equal than expected" in {
       val secretKey =
         for {
           key <- Key(DecrEncryptedKey)
-          token <- Token.fromString(Token.serialise(token))
+          token <- Token.fromString(Token.serialise(token.get))
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
 
@@ -30,13 +30,19 @@ class TokenSpec extends AnyWordSpec {
       val secretKey =
         for {
           key <- Key(HackEncryptedKey)
-          token <- Token.fromString(Token.serialise(token))
+          token <- Token.fromString(Token.serialise(token.get))
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
       secretKey match {
-
         case Some(value) => assert(value == HackExpected)
         case None        =>
+      }
+    }
+
+    "fail to generate a token with an invalid key" in {
+      val invalidKey = "invalid-key"
+      assertThrows[NoSuchElementException] {
+        Token.apply(Key(invalidKey).get, Original)
       }
     }
 
@@ -50,7 +56,7 @@ object TokenSpec {
   val DecrEncryptedKey = "wz5hami-yvr3zHyzVEiOYFvN9kTzXRW3dP7NcUr9Nvs="
   val DecrExpected = "this-should-be-desencrypted"
 
-  def HackEncryptedKey =
+  val HackEncryptedKey =
     "gAAAAABhDDN4i36Z-MGugoIpfN6Xij5pWesWOFY0Jj-Gv3rK46uWMo1y3UuhqknT-bUIS5n0zyBtZq05UNR0j88x91FyXBFMDFz_nR1zFmpUeM6X3-OiFb0="
   val HackExpected = "hackable_key_for_bad_people"
 }

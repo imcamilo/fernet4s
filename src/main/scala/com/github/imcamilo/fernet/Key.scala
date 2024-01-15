@@ -1,6 +1,6 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.{WHKeyException, WHTokenException}
+import com.github.imcamilo.exceptions.{Key4sException, Token4sException}
 import org.slf4j.LoggerFactory
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
@@ -25,6 +25,9 @@ import scala.util.{Failure, Success, Try, Using}
   */
 class Key(val signingKey: Array[Byte], val encryptionKey: Array[Byte])
 
+/**
+  * Companion object for creating instances of the Key class.
+  */
 object Key {
 
   private val logger = LoggerFactory.getLogger(getClass)
@@ -75,7 +78,9 @@ object Key {
     }
   }
 
-  /** @param string
+  /**
+    * Creates a Key instance from the given string.
+    * @param string
     *    a Base 64 URL string in the format Signing-key (128 bits) || Encryption-key (128 bits).
     *
     *  Create a Key from a payload containing the signing and encryption key. Use a concatenatedKeys an array of 32 bytes
@@ -85,44 +90,59 @@ object Key {
     */
   def apply(string: String): Option[Key] = {
     val concatenatedKeys = decoder.decode(string)
-
     val keyInstances = Try {
       creatingKeyInstance(
         copyOfRange(concatenatedKeys, 0, signingKeyBytes),
         copyOfRange(concatenatedKeys, signingKeyBytes, fernetKeyBytes)
       )
     }.recover {
-      case error =>
-        throw new WHKeyException(error.getMessage)
+      case error => throw new Key4sException(error.getMessage)
     }
-
     keyInstances.flatten match {
-      case Failure(exception) =>
-        logger.error(
-          "exception creating key instance - " + exception.getMessage
-        )
+      case Failure(ex) =>
+        logger.error(s"Exception creating key instance - ${ex.getMessage}")
         None
-      case Success(keys) => Option(new Key(keys._1, keys._2))
+      case Success(keys) => Some(new Key(keys._1, keys._2))
     }
-
   }
 
+  /**
+    * Creates a key instance from the given signing and encryption keys.
+    *
+    * @param signingKey The signing key.
+    * @param encryptionKey The encryption key.
+    * @return A Try containing the key instance if successful, or a Failure with an IllegalArgumentException if validation fails.
+    */
   def creatingKeyInstance(
       signingKey: Array[Byte],
       encryptionKey: Array[Byte]
-  ): Try[(Array[Byte], Array[Byte])] =
+  ): Try[(Array[Byte], Array[Byte])] = {
     Try {
-      if (signingKey == null || signingKey.length != signingKeyBytes) {
-        throw new IllegalArgumentException("Signing key must be 128 bits")
-      }
-      if (encryptionKey == null || encryptionKey.length != encryptionKeyBytes) {
-        throw new IllegalArgumentException("Encryption key must be 128 bits")
-      }
+      validateKeys(signingKey, encryptionKey)
       val localSigningKey = copyOf(signingKey, signingKeyBytes)
       val localEncryptionKey = copyOf(encryptionKey, encryptionKeyBytes)
-
       (localSigningKey, localEncryptionKey)
     }
+  }
+
+  /**
+    * Validates the signing and encryption keys.
+    *
+    * @param signingKey The signing key.
+    * @param encryptionKey The encryption key.
+    * @throws IllegalArgumentException If the signing or encryption key is null or not of the expected length.
+    */
+  private def validateKeys(
+      signingKey: Array[Byte],
+      encryptionKey: Array[Byte]
+  ): Unit = {
+    if (signingKey == null || signingKey.length != signingKeyBytes) {
+      throw new IllegalArgumentException("Signing key must be 128 bits")
+    }
+    if (encryptionKey == null || encryptionKey.length != encryptionKeyBytes) {
+      throw new IllegalArgumentException("Encryption key must be 128 bits")
+    }
+  }
 
   def sign(
       version: Byte,
@@ -230,7 +250,7 @@ object Key {
         // in addition, we validate the encryption key and initialization vector up front
         throw new IllegalStateException(e.getMessage, e)
       case bpe: BadPaddingException =>
-        throw new WHTokenException(
+        throw new Token4sException(
           "Invalid padding in token: " + bpe.getMessage + " - Bad padding exception: " + bpe
         )
     }

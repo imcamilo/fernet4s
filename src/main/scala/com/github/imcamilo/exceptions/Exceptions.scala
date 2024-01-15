@@ -1,7 +1,11 @@
 package com.github.imcamilo.exceptions
 
-class OutputValidationException(message: String) extends WHTokenException(message)
+class OutputValidationException(message: String)
+    extends Token4sException(message)
 
-class WHKeyException(message: String) extends RuntimeException(message)
+class Key4sException(message: String) extends RuntimeException(message)
 
-class WHTokenException(message: String) extends IllegalArgumentException(message)
+class Token4sException(message: String)
+    extends IllegalArgumentException(message)
+
+class InvalidKeyException(message: String) extends Key4sException(message)
