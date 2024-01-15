@@ -1,6 +1,6 @@
 # Fernet4s
 
-This library provides utilities for working with Fernet keys in Scala.
+This library provides simpler utilities for working with Fernet keys in Scala and Java.
 
 ## How to Create a Key
 
@@ -33,7 +33,7 @@ result match {
 
 3. **Handle possible exceptions:**
 
-   Make sure to handle exceptions that may occur during the key creation process. For example:
+Make sure to handle exceptions that may occur during the key creation process. For example:
 
 ```scala
 try {
@@ -50,7 +50,7 @@ try {
 ## Contributing
 
 Contributions are welcome! If you have ideas for improvements, new features, or find any issues, please open an issue or
-submit a pull request. We appreciate your feedback and collaboration.
+submit a pull request. I'd appreciate your feedback and collaboration.
 
 ### How to Contribute
 
@@ -62,3 +62,5 @@ submit a pull request. We appreciate your feedback and collaboration.
 6. **Open a pull request:** Propose your changes to be merged into the main project.
 
 We value and encourage collaborative development. Your contributions help make this library better for everyone.
+
+In the future I'd like to use just type classes :c.
