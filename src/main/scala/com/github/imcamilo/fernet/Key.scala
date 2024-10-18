@@ -1,7 +1,6 @@
 package com.github.imcamilo.fernet
 
-import com.github.imcamilo.exceptions.{Key4sException, Token4sException}
-import org.slf4j.LoggerFactory
+import com.github.imcamilo.exceptions.Token4sException
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 import java.security.{
@@ -39,7 +38,7 @@ object Key {
     *    the raw bytes of the data to store in a token
     *  @param initializationVector
     *    random bytes from a high-entropy source to initialise the AES cipher
-    *  @param breadcrumbEncryptionKey
+    *  @param encryptionKey
     *    encryption key, for keeping immutable data
     *  @return
     *    the AES-encrypted payload. The length will always be a multiple of 16 (128 bits).
@@ -47,71 +46,61 @@ object Key {
   def encrypt(
       payload: Array[Byte],
       initializationVector: IvParameterSpec,
-      breadcrumbEncryptionKey: Array[Byte]
+      encryptionKey: Array[Byte]
   ): Array[Byte] = {
-    val encryptionKeySpec = getEncryptionKeySpec(breadcrumbEncryptionKey)
-    try {
+    val encryptionKeySpec = getEncryptionKeySpec(encryptionKey)
+    Try {
       val cipher = Cipher.getInstance(cipherTransformation)
       cipher.init(ENCRYPT_MODE, encryptionKeySpec, initializationVector)
       cipher.doFinal(payload)
-    } catch {
+    }.recover {
       case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException) =>
-        // these should not happen as we use an algorithm (AES) and padding (PKCS5) that are guaranteed to exist
         throw new IllegalStateException(
-          "Unable to access cipher " + cipherTransformation + ": " + e.getMessage,
+          s"Unable to access cipher $cipherTransformation: ${e.getMessage}",
           e
         )
       case e @ (_: InvalidKeyException |
           _: InvalidAlgorithmParameterException) =>
-        // this should not happen as the key is validated ahead of time and
-        // we use an algorithm guaranteed to exist
         throw new IllegalStateException(
-          "Unable to initialise encryption cipher with algorithm " + encryptionKeySpec.getAlgorithm + " and format " + encryptionKeySpec.getFormat + ": " + e.getMessage,
+          s"Unable to initialize encryption cipher with algorithm ${encryptionKeySpec.getAlgorithm}: ${e.getMessage}",
           e
         )
       case e @ (_: IllegalBlockSizeException | _: BadPaddingException) =>
-        // these should not happen as we control the block size and padding
         throw new IllegalStateException(
-          "Unable to encrypt data: " + e.getMessage,
+          s"Unable to encrypt data: ${e.getMessage}",
           e
         )
-    }
+    }.get
   }
 
   /**
     * Creates a Key instance from the given string.
     * @param string
-    *    a Base 64 URL string in the format Signing-key (128 bits) || Encryption-key (128 bits).
+    *    a Base64 URL string in the format Signing-key (128 bits) || Encryption-key (128 bits).
     *
-    *  Create a Key from a payload containing the signing and encryption key. Use a concatenatedKeys an array of 32 bytes
-    *  of which the first 16 is the signing key and the last 16 is the encryption/decryption key
-    *  @return
-    *    a WHKey case class from individual components.
+    * @return
+    *    a Key instance from individual components.
     */
   def apply(string: String): Option[Key] = {
     val concatenatedKeys = decoder.decode(string)
-    val keyInstances = Try {
-      creatingKeyInstance(
-        copyOfRange(concatenatedKeys, 0, signingKeyBytes),
-        copyOfRange(concatenatedKeys, signingKeyBytes, fernetKeyBytes)
-      )
-    }.recover {
-      case error => throw new Key4sException(error.getMessage)
-    }
-    keyInstances.flatten match {
+    val keyInstance = creatingKeyInstance(
+      copyOfRange(concatenatedKeys, 0, signingKeyBytes),
+      copyOfRange(concatenatedKeys, signingKeyBytes, fernetKeyBytes)
+    )
+    keyInstance match {
       case Failure(ex) =>
-        logger.error(s"Exception creating key instance - ${ex.getMessage}")
+        logger.error(s"Exception creating key instance: ${ex.getMessage}", ex)
         None
-      case Success(keys) => Some(new Key(keys._1, keys._2))
+      case Success((signingKey, encryptionKey)) =>
+        Some(new Key(signingKey, encryptionKey))
     }
   }
 
   /**
     * Creates a key instance from the given signing and encryption keys.
-    *
     * @param signingKey The signing key.
     * @param encryptionKey The encryption key.
-    * @return A Try containing the key instance if successful, or a Failure with an IllegalArgumentException if validation fails.
+    * @return A Try containing the key instance if successful.
     */
   def creatingKeyInstance(
       signingKey: Array[Byte],
@@ -119,15 +108,15 @@ object Key {
   ): Try[(Array[Byte], Array[Byte])] = {
     Try {
       validateKeys(signingKey, encryptionKey)
-      val localSigningKey = copyOf(signingKey, signingKeyBytes)
-      val localEncryptionKey = copyOf(encryptionKey, encryptionKeyBytes)
-      (localSigningKey, localEncryptionKey)
+      (
+        copyOf(signingKey, signingKeyBytes),
+        copyOf(encryptionKey, encryptionKeyBytes)
+      )
     }
   }
 
   /**
     * Validates the signing and encryption keys.
-    *
     * @param signingKey The signing key.
     * @param encryptionKey The encryption key.
     * @throws IllegalArgumentException If the signing or encryption key is null or not of the expected length.
@@ -137,123 +126,108 @@ object Key {
       encryptionKey: Array[Byte]
   ): Unit = {
     if (signingKey == null || signingKey.length != signingKeyBytes) {
-      throw new IllegalArgumentException("Signing key must be 128 bits")
+      throw new IllegalArgumentException("Signing key must be 128 bits.")
     }
     if (encryptionKey == null || encryptionKey.length != encryptionKeyBytes) {
-      throw new IllegalArgumentException("Encryption key must be 128 bits")
+      throw new IllegalArgumentException("Encryption key must be 128 bits.")
     }
   }
 
+  /**
+    * Sign the data with HMAC.
+    * @param version The version of the token.
+    * @param timestamp The timestamp of token creation.
+    * @param initializationVector The IV used for encryption.
+    * @param cipherText The encrypted payload.
+    * @param signingKey The signing key for HMAC.
+    * @return The HMAC signature.
+    */
   def sign(
       version: Byte,
       timestamp: Instant,
       initializationVector: IvParameterSpec,
       cipherText: Array[Byte],
-      breadcrumbSignKey: Array[Byte]
+      signingKey: Array[Byte]
   ): Array[Byte] = {
     Using(new ByteArrayOutputStream(tokenPrefixBytes + cipherText.length)) {
       byteStream =>
-        sign(
-          version,
-          timestamp,
-          initializationVector,
-          cipherText,
-          byteStream,
-          breadcrumbSignKey
-        )
+        Using(new DataOutputStream(byteStream)) { dataStream =>
+          dataStream.writeByte(version)
+          dataStream.writeLong(timestamp.getEpochSecond)
+          dataStream.write(initializationVector.getIV)
+          dataStream.write(cipherText)
+          try {
+            val mac = Mac.getInstance(signingAlgorithm)
+            mac.init(getSigningKeySpec(signingKey))
+            mac.doFinal(byteStream.toByteArray)
+          } catch {
+            case ike: InvalidKeyException =>
+              throw new IllegalStateException(
+                s"Unable to initialize HMAC with shared secret: ${ike.getMessage}",
+                ike
+              )
+            case nsae: NoSuchAlgorithmException =>
+              throw new IllegalStateException(
+                s"Signing algorithm not available: ${nsae.getMessage}",
+                nsae
+              )
+          }
+        }
     }.recover {
       case e =>
-        throw new IllegalStateException(e.getMessage, e)
+        throw new IllegalStateException(
+          s"Error during signing process: ${e.getMessage}",
+          e
+        )
     }.get
   }
 
-  def sign(
-      version: Byte,
-      timestamp: Instant,
-      initializationVector: IvParameterSpec,
-      cipherText: Array[Byte],
-      byteStream: ByteArrayOutputStream,
-      breadcrumbSignKey: Array[Byte]
-  ): Array[Byte] = {
-    Using(new DataOutputStream(byteStream)) { dataStream =>
-      dataStream.writeByte(version)
-      dataStream.writeLong(timestamp.getEpochSecond)
-      dataStream.write(initializationVector.getIV)
-      dataStream.write(cipherText)
-      try {
-        val mac = Mac.getInstance(signingAlgorithm)
-        mac.init(getSigningKeySpec(breadcrumbSignKey))
-        mac.doFinal(byteStream.toByteArray)
-      } catch {
-        case ike: InvalidKeyException =>
-          // this should not happen because we control the signing key
-          // algorithm and pre-validate the length
-          throw new IllegalStateException(
-            "Unable to initialise HMAC with shared secret: " + ike.getMessage,
-            ike
-          )
-        case nsae: NoSuchAlgorithmException =>
-          // this should not happen as implementors are required to
-          // provide the HmacSHA256 algorithm.
-          throw new IllegalStateException(nsae.getMessage, nsae)
-      }
-    }.recover {
-      case error =>
-        throw new RuntimeException("exception sign key")
-    }.get
+  private def getSigningKeySpec(signingKey: Array[Byte]): SecretKeySpec = {
+    new SecretKeySpec(signingKey, signingAlgorithm)
   }
 
-  def getSigningKeySpec(breadcrumbSigningKey: Array[Byte]): SecretKeySpec = {
-    new SecretKeySpec(breadcrumbSigningKey, signingAlgorithm)
-  }
-
-  def getEncryptionKeySpec(
-      breadcrumbEncryptionKey: Array[Byte]
+  private def getEncryptionKeySpec(
+      encryptionKey: Array[Byte]
   ): SecretKeySpec = {
-    new SecretKeySpec(breadcrumbEncryptionKey, encryptionAlgorithm)
+    new SecretKeySpec(encryptionKey, encryptionAlgorithm)
   }
 
   /** Decrypt the payload of a Fernet token.
-    *
-    *  <p> Warning: Do not call this unless the cipher text has first been verified. Attempting to decrypt a cipher text
-    *  that has been tampered with will leak whether or not the padding is correct and this can be used to decrypt stolen
-    *  cipher text. </p>
-    *
     *  @param cipherText
-    *    the verified padded encrypted payload of a token. The length <em>must</em> be a multiple of 16 (128 bits).
+    *    the encrypted payload.
     *  @param initializationVector
-    *    the random bytes used in the AES encryption of the token
-    *  @param breadcrumbEncryptionKey
-    *    A breadcrumb. The Array of Bytes of the encryption key, just for immutable reasons.
+    *    the IV used in the AES encryption.
+    *  @param encryptionKey
+    *    The encryption key.
     *  @return
-    *    the decrypted payload
+    *    the decrypted payload.
     */
   def decrypt(
       cipherText: Array[Byte],
       initializationVector: IvParameterSpec,
-      breadcrumbEncryptionKey: Array[Byte]
+      encryptionKey: Array[Byte]
   ): Array[Byte] = {
-    try {
+    Try {
       val cipher = Cipher.getInstance(cipherTransformation)
       cipher.init(
         DECRYPT_MODE,
-        getEncryptionKeySpec(breadcrumbEncryptionKey),
+        getEncryptionKeySpec(encryptionKey),
         initializationVector
       )
       cipher.doFinal(cipherText)
-    } catch {
+    }.recover {
       case e @ (_: NoSuchAlgorithmException | _: NoSuchPaddingException |
           _: InvalidKeyException | _: InvalidAlgorithmParameterException |
           _: IllegalBlockSizeException) =>
-        // this should not happen as we use an algorithm (AES) and padding
-        // (PKCS5) that are guaranteed to exist.
-        // in addition, we validate the encryption key and initialization vector up front
-        throw new IllegalStateException(e.getMessage, e)
+        throw new IllegalStateException(
+          s"Unable to decrypt data: ${e.getMessage}",
+          e
+        )
       case bpe: BadPaddingException =>
         throw new Token4sException(
-          "Invalid padding in token: " + bpe.getMessage + " - Bad padding exception: " + bpe
+          s"Invalid padding in token: ${bpe.getMessage}",
+          bpe
         )
-    }
+    }.get
   }
-
 }
