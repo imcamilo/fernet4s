@@ -11,8 +11,10 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       munit % Test,
       "org.scalatest" %% "scalatest" % "3.2.9" % Test,
-      "org.slf4j" % "slf4j-log4j12" % "1.7.30"
+      "org.slf4j" % "slf4j-log4j12" % "1.7.30",
+      "org.typelevel" %% "cats-core" % "2.10.0
     )
   )
 
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.
+import Dependencies._
