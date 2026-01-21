@@ -123,6 +123,29 @@ object Fernet {
     Try(Key(keyString)).toOption.flatten.toRight("Invalid key format")
   }
 
+  /** Imports a Fernet key from a Base64 URL-encoded string (Java-friendly).
+    *
+    * Returns a [[Result]] which is easier to use from Java than [[Either]].
+    *
+    * @param keyString Base64 URL-encoded key string (44 characters)
+    * @return Result containing the key if valid, failure with error message if invalid
+    *
+    * @example Java usage:
+    * {{{
+    * Result<Key> result = Fernet.keyFromStringResult("cw_0x689RpI...");
+    * if (result.isSuccess()) {
+    *     Key key = result.get();
+    * } else {
+    *     String error = result.getError();
+    * }
+    * }}}
+    *
+    * @since 1.0.0
+    */
+  def keyFromStringResult(keyString: String): Result[Key] = {
+    Result.fromEither(keyFromString(keyString))
+  }
+
   /** Exports a Fernet key to a Base64 URL-encoded string.
     *
     * The resulting string can be stored in:
@@ -185,6 +208,30 @@ object Fernet {
     } yield tokenString
   }
 
+  /** Encrypts plaintext and generates a Fernet token (Java-friendly).
+    *
+    * Returns a [[Result]] which is easier to use from Java than [[Either]].
+    *
+    * @param plainText the data to encrypt (will be UTF-8 encoded)
+    * @param key the Fernet key for encryption
+    * @return Result containing the token if successful, failure with error if encryption fails
+    *
+    * @example Java usage:
+    * {{{
+    * Result<String> result = Fernet.encryptResult("sensitive data", key);
+    * if (result.isSuccess()) {
+    *     String token = result.get();
+    * } else {
+    *     String error = result.getError();
+    * }
+    * }}}
+    *
+    * @since 1.0.0
+    */
+  def encryptResult(plainText: String, key: Key): Result[String] = {
+    Result.fromEither(encrypt(plainText, key))
+  }
+
   /** Encrypts binary data and generates a Fernet token.
     *
     * Useful for encrypting non-text data like images, files, or serialized objects.
@@ -208,6 +255,29 @@ object Fernet {
       token <- Token(new SecureRandom(), key, payload).toRight("Failed to create token")
       tokenString = Token.serialize(token)
     } yield tokenString
+  }
+
+  /** Encrypts binary data and generates a Fernet token (Java-friendly).
+    *
+    * Returns a [[Result]] which is easier to use from Java than [[Either]].
+    *
+    * @param payload the bytes to encrypt
+    * @param key the Fernet key for encryption
+    * @return Result containing the token if successful, failure with error if encryption fails
+    *
+    * @example Java usage:
+    * {{{
+    * byte[] data = Files.readAllBytes(Paths.get("secret.bin"));
+    * Result<String> result = Fernet.encryptBytesResult(data, key);
+    * if (result.isSuccess()) {
+    *     String token = result.get();
+    * }
+    * }}}
+    *
+    * @since 1.0.0
+    */
+  def encryptBytesResult(payload: Array[Byte], key: Key): Result[String] = {
+    Result.fromEither(encryptBytes(payload, key))
   }
 
   /** Decrypts a Fernet token and returns the plaintext.
@@ -255,6 +325,41 @@ object Fernet {
     } yield decrypted
   }
 
+  /** Decrypts a Fernet token and returns the plaintext (Java-friendly).
+    *
+    * Returns a [[Result]] which is easier to use from Java than [[Either]].
+    *
+    * @param tokenString the encrypted token string
+    * @param key the Fernet key for decryption
+    * @return Result containing the plaintext if valid, failure with error if invalid
+    *
+    * @example Java usage:
+    * {{{
+    * Result<String> result = Fernet.decryptResult(token, key);
+    * if (result.isSuccess()) {
+    *     String plaintext = result.get();
+    * }
+    * }}}
+    *
+    * @since 1.0.0
+    */
+  def decryptResult(tokenString: String, key: Key): Result[String] = {
+    Result.fromEither(decrypt(tokenString, key))
+  }
+
+  /** Decrypts a Fernet token with TTL and returns the plaintext (Java-friendly).
+    *
+    * @param tokenString the encrypted token string
+    * @param key the Fernet key for decryption
+    * @param ttlSeconds time-to-live in seconds
+    * @return Result containing the plaintext if valid, failure with error if invalid or expired
+    *
+    * @since 1.0.0
+    */
+  def decryptResult(tokenString: String, key: Key, ttlSeconds: Long): Result[String] = {
+    Result.fromEither(decrypt(tokenString, key, Some(ttlSeconds)))
+  }
+
   /** Decrypts a Fernet token and returns the raw bytes.
     *
     * Use this when the encrypted data was binary (not text).
@@ -281,6 +386,31 @@ object Fernet {
       ttlSeconds: Option[Long] = None
   ): Either[String, Array[Byte]] = {
     decrypt(tokenString, key, ttlSeconds).map(_.getBytes(Constants.charset))
+  }
+
+  /** Decrypts a Fernet token and returns the raw bytes (Java-friendly).
+    *
+    * @param tokenString the encrypted token string
+    * @param key the Fernet key for decryption
+    * @return Result containing the bytes if valid, failure with error if invalid
+    *
+    * @since 1.0.0
+    */
+  def decryptBytesResult(tokenString: String, key: Key): Result[Array[Byte]] = {
+    Result.fromEither(decryptBytes(tokenString, key))
+  }
+
+  /** Decrypts a Fernet token with TTL and returns the raw bytes (Java-friendly).
+    *
+    * @param tokenString the encrypted token string
+    * @param key the Fernet key for decryption
+    * @param ttlSeconds time-to-live in seconds
+    * @return Result containing the bytes if valid, failure with error if invalid or expired
+    *
+    * @since 1.0.0
+    */
+  def decryptBytesResult(tokenString: String, key: Key, ttlSeconds: Long): Result[Array[Byte]] = {
+    Result.fromEither(decryptBytes(tokenString, key, Some(ttlSeconds)))
   }
 
   /** Verifies a Fernet token without decrypting the contents.
@@ -322,6 +452,41 @@ object Fernet {
         case Left(err) => Left(err)
       }
     }.toOption.getOrElse(Left("Token verification failed"))
+  }
+
+  /** Verifies a Fernet token without decrypting the contents (Java-friendly).
+    *
+    * @param tokenString the token string to verify
+    * @param key the Fernet key for verification
+    * @return Result containing true if valid, failure with error if invalid
+    *
+    * @example Java usage:
+    * {{{
+    * Result<Boolean> result = Fernet.verifyResult(token, key);
+    * if (result.isSuccess()) {
+    *     System.out.println("Token is valid");
+    * } else {
+    *     System.err.println("Invalid: " + result.getError());
+    * }
+    * }}}
+    *
+    * @since 1.0.0
+    */
+  def verifyResult(tokenString: String, key: Key): Result[Boolean] = {
+    Result.fromEither(verify(tokenString, key))
+  }
+
+  /** Verifies a Fernet token with TTL without decrypting the contents (Java-friendly).
+    *
+    * @param tokenString the token string to verify
+    * @param key the Fernet key for verification
+    * @param ttlSeconds time-to-live in seconds
+    * @return Result containing true if valid, failure with error if invalid or expired
+    *
+    * @since 1.0.0
+    */
+  def verifyResult(tokenString: String, key: Key, ttlSeconds: Long): Result[Boolean] = {
+    Result.fromEither(verify(tokenString, key, Some(ttlSeconds)))
   }
 
   /** Creates a custom validator with specific TTL.

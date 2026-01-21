@@ -15,7 +15,7 @@ Fernet is like a safe for your data. You put something inside with a key, and on
 ## Installation
 
 ```scala
-libraryDependencies += "io.github.imcamilo" %% "fernet4s" % "0.1.0"
+libraryDependencies += "io.github.imcamilo" %% "fernet4s" % "1.0.0"
 ```
 
 ## Quick Start
@@ -78,20 +78,76 @@ val decrypted = key.decrypt(token, ttlSeconds = Some(60))
 // After 60 seconds → Left("Token has expired")
 ```
 
-### From Java
+### From Java (Functional API)
 
 ```java
 import com.github.imcamilo.fernet.Fernet;
 import com.github.imcamilo.fernet.Key;
-import scala.util.Either;
+import com.github.imcamilo.fernet.Result;
 
+// Generate key
 Key key = Fernet.generateKey();
-Either<String, String> encrypted = Fernet.encrypt("Hello!", key);
 
-if (encrypted.isRight()) {
-    String token = encrypted.right().get();
-    // ...
+// Encrypt
+Result<String> encrypted = Fernet.encryptResult("Hello, Fernet!", key);
+if (encrypted.isSuccess()) {
+    String token = encrypted.get();
+    System.out.println("Token: " + token);
+
+    // Decrypt
+    Result<String> decrypted = Fernet.decryptResult(token, key);
+    if (decrypted.isSuccess()) {
+        System.out.println("Decrypted: " + decrypted.get());
+    } else {
+        System.err.println("Error: " + decrypted.getError());
+    }
+} else {
+    System.err.println("Error: " + encrypted.getError());
 }
+
+// With TTL (60 seconds)
+Result<String> decryptedTTL = Fernet.decryptResult(token, key, 60);
+
+// Functional chaining
+Result<String> result = Fernet.encryptResult("data", key)
+    .flatMap(token -> Fernet.decryptResult(token, key))
+    .map(String::toUpperCase);
+```
+
+### From Kotlin (Functional API)
+
+```kotlin
+import com.github.imcamilo.fernet.Fernet
+import com.github.imcamilo.fernet.Key
+import com.github.imcamilo.fernet.Result
+
+// Generate key
+val key: Key = Fernet.generateKey()
+
+// Encrypt
+val encrypted = Fernet.encryptResult("Hello, Fernet!", key)
+if (encrypted.isSuccess) {
+    val token = encrypted.get()
+    println("Token: $token")
+
+    // Decrypt
+    val decrypted = Fernet.decryptResult(token, key)
+    if (decrypted.isSuccess) {
+        println("Decrypted: ${decrypted.get()}")
+    } else {
+        System.err.println("Error: ${decrypted.error}")
+    }
+} else {
+    System.err.println("Error: ${encrypted.error}")
+}
+
+// With TTL (60 seconds)
+val decryptedTTL = Fernet.decryptResult(token, key, 60)
+
+// Functional chaining
+val result = Fernet.encryptResult("data", key)
+    .flatMap { token -> Fernet.decryptResult(token, key) }
+    .map { it.toUpperCase() }
 ```
 
 ## Examples
@@ -128,8 +184,8 @@ sbt test
 
 ## Compatibility
 
-- ✅ Scala 2.13
-- ✅ Java 8+
+- ✅ Scala 2.13 & 3.3+
+- ✅ Java 11+
 - ✅ Kotlin (via Java interop)
 - 📦 Compatible with [Fernet spec](https://github.com/fernet/spec)
 

@@ -6,7 +6,7 @@ val scala3 = "3.3.3"
 
 ThisBuild / scalaVersion := scala213
 ThisBuild / crossScalaVersions := Seq(scala213, scala3)
-ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / version := "1.0.0"
 ThisBuild / organization := "io.github.imcamilo"
 ThisBuild / organizationName := "fernet4s"
 
