@@ -16,7 +16,8 @@ class TokenSpec extends AnyWordSpec {
       val secretKey =
         for {
           key <- Key(DecrEncryptedKey)
-          token <- Token.fromString(Token.serialize(token.get))
+          serialized <- Token.serialize(token.get).toOption
+          token <- Token.fromString(serialized)
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
 
@@ -30,7 +31,8 @@ class TokenSpec extends AnyWordSpec {
       val secretKey =
         for {
           key <- Key(HackEncryptedKey)
-          token <- Token.fromString(Token.serialize(token.get))
+          serialized <- Token.serialize(token.get).toOption
+          token <- Token.fromString(serialized)
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
       secretKey match {
