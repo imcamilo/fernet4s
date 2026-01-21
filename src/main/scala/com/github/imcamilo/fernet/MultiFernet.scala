@@ -37,6 +37,15 @@ class MultiFernet(val keys: List[Key]) {
     Fernet.encrypt(plainText, keys.head)
   }
 
+  /** Encrypt data using the first (primary) key (Java-friendly).
+    *
+    * @param plainText the data to encrypt
+    * @return Result with the encrypted token or error
+    */
+  def encryptResult(plainText: String): Result[String] = {
+    Result.fromEither(encrypt(plainText))
+  }
+
   /** Encrypt binary data using the first (primary) key.
     *
     * @param payload the bytes to encrypt
@@ -44,6 +53,15 @@ class MultiFernet(val keys: List[Key]) {
     */
   def encryptBytes(payload: Array[Byte]): Either[String, String] = {
     Fernet.encryptBytes(payload, keys.head)
+  }
+
+  /** Encrypt binary data using the first (primary) key (Java-friendly).
+    *
+    * @param payload the bytes to encrypt
+    * @return Result with the encrypted token or error
+    */
+  def encryptBytesResult(payload: Array[Byte]): Result[String] = {
+    Result.fromEither(encryptBytes(payload))
   }
 
   /** Decrypt a token trying each key in order until one succeeds.
@@ -66,6 +84,25 @@ class MultiFernet(val keys: List[Key]) {
     }
   }
 
+  /** Decrypt a token trying each key in order (Java-friendly).
+    *
+    * @param tokenString the token to decrypt
+    * @return Result with the decrypted plaintext or error
+    */
+  def decryptResult(tokenString: String): Result[String] = {
+    Result.fromEither(decrypt(tokenString))
+  }
+
+  /** Decrypt a token with TTL trying each key in order (Java-friendly).
+    *
+    * @param tokenString the token to decrypt
+    * @param ttlSeconds TTL in seconds
+    * @return Result with the decrypted plaintext or error
+    */
+  def decryptResult(tokenString: String, ttlSeconds: Long): Result[String] = {
+    Result.fromEither(decrypt(tokenString, Some(ttlSeconds)))
+  }
+
   /** Decrypt binary data trying each key in order.
     *
     * @param tokenString the token to decrypt
@@ -84,6 +121,25 @@ class MultiFernet(val keys: List[Key]) {
           case Left(_) => Left("No valid key found")
         }
     }
+  }
+
+  /** Decrypt binary data trying each key in order (Java-friendly).
+    *
+    * @param tokenString the token to decrypt
+    * @return Result with the decrypted bytes or error
+    */
+  def decryptBytesResult(tokenString: String): Result[Array[Byte]] = {
+    Result.fromEither(decryptBytes(tokenString))
+  }
+
+  /** Decrypt binary data with TTL trying each key in order (Java-friendly).
+    *
+    * @param tokenString the token to decrypt
+    * @param ttlSeconds TTL in seconds
+    * @return Result with the decrypted bytes or error
+    */
+  def decryptBytesResult(tokenString: String, ttlSeconds: Long): Result[Array[Byte]] = {
+    Result.fromEither(decryptBytes(tokenString, Some(ttlSeconds)))
   }
 
   /** Rotate a token to be encrypted with the primary key.

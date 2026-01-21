@@ -48,6 +48,11 @@ sealed trait Result[+A] {
     */
   def getOrElse[B >: A](default: => B): B
 
+  /** Gets the success value or returns a default (Java-friendly).
+    * @param defaultValue the default value to return if this is a failure
+    */
+  def getOrElseValue[B >: A](defaultValue: B): B = getOrElse(defaultValue)
+
   /** Maps the success value.
     * @param f the function to apply to the success value
     */
