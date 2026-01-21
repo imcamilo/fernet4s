@@ -230,6 +230,7 @@ object MultiFernet {
     * @param keys variable number of keys (first is primary)
     * @return a MultiFernet instance
     */
+  @annotation.varargs
   def create(keys: Key*): MultiFernet = {
     new MultiFernet(keys.toList)
   }
