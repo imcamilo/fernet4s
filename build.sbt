@@ -1,9 +1,17 @@
 import Dependencies._
 
-ThisBuild / scalaVersion := "2.13.14"
+// Scala versions
+val scala213 = "2.13.14"
+val scala3 = "3.3.3"
+
+ThisBuild / scalaVersion := scala213
+ThisBuild / crossScalaVersions := Seq(scala213, scala3)
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "io.github.imcamilo"
 ThisBuild / organizationName := "fernet4s"
+
+// Java 11+
+ThisBuild / javacOptions ++= Seq("-source", "11", "-target", "11")
 
 lazy val root = (project in file("."))
   .settings(
