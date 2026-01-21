@@ -1,84 +1,84 @@
 # fernet4s 🔐
 
-> Cifrado simétrico simple y seguro para Scala
+> Simple and secure symmetric encryption for Scala
 
-Fernet es como una caja fuerte para tus datos. Pones algo adentro con una llave, y solo esa llave puede abrirla después. Además, la caja tiene un reloj: si pasa mucho tiempo, ya no se puede abrir (TTL).
+Fernet is like a safe for your data. You put something inside with a key, and only that key can open it later. Plus, the safe has a clock: if too much time passes, it can't be opened anymore (TTL).
 
-## ¿Por qué Fernet?
+## Why Fernet?
 
-- ✅ **Simple**: Una sola llave para todo
-- ✅ **Seguro**: AES-128 + HMAC-SHA256
-- ✅ **Con timestamp**: Soporta expiración (TTL)
-- ✅ **Estándar**: Compatible con Python, Ruby, Go, etc.
-- ✅ **Sin sorpresas**: Detecta cualquier alteración
+- ✅ **Simple**: One key for everything
+- ✅ **Secure**: AES-128 + HMAC-SHA256
+- ✅ **With timestamp**: Supports expiration (TTL)
+- ✅ **Standard**: Compatible with Python, Ruby, Go, etc.
+- ✅ **No surprises**: Detects any tampering
 
-## Instalación
+## Installation
 
 ```scala
 libraryDependencies += "io.github.imcamilo" %% "fernet4s" % "0.1.0"
 ```
 
-## Uso Rápido
+## Quick Start
 
-### Cifrar y descifrar
+### Encrypt and decrypt
 
 ```scala
 import com.github.imcamilo.fernet.Fernet
 
-// Generar una llave
+// Generate a key
 val key = Fernet.generateKey()
 
-// Cifrar
-val encrypted = Fernet.encrypt("Hola Fernet!", key)
+// Encrypt
+val encrypted = Fernet.encrypt("Hello Fernet!", key)
 // Right("gAAAAABh...")
 
-// Descifrar
+// Decrypt
 val decrypted = Fernet.decrypt(encrypted.right.get, key)
-// Right("Hola Fernet!")
+// Right("Hello Fernet!")
 ```
 
-### Con sintaxis fluida
+### With fluent syntax
 
 ```scala
 import com.github.imcamilo.fernet.Fernet.syntax._
 
 val key = Fernet.generateKey()
 
-// Más natural y encadenado
+// More natural and chainable
 val result = for {
-  token <- key.encrypt("Mensaje secreto")
+  token <- key.encrypt("Secret message")
   plain <- key.decrypt(token)
 } yield plain
 
-println(result) // Right("Mensaje secreto")
+println(result) // Right("Secret message")
 ```
 
-### Guardar y cargar llaves
+### Save and load keys
 
 ```scala
-// Convertir llave a texto
+// Convert key to text
 val keyString = key.toBase64
 // "wz5hami-yvr3zHyzVEiOYFvN9kTzXRW3dP7NcUr9Nvs="
 
-// Guardar en variable de entorno, archivo, etc.
+// Save to environment variable, file, etc.
 
-// Cargar después
+// Load later
 val importedKey = keyString.asFernetKey
 ```
 
-### Tokens con expiración (TTL)
+### Tokens with expiration (TTL)
 
 ```scala
 val key = Fernet.generateKey()
-val token = key.encrypt("Dato temporal").right.get
+val token = key.encrypt("Temporary data").right.get
 
-// Solo válido por 60 segundos
+// Only valid for 60 seconds
 val decrypted = key.decrypt(token, ttlSeconds = Some(60))
 
-// Después de 60 segundos → Left("Token has expired")
+// After 60 seconds → Left("Token has expired")
 ```
 
-### Desde Java
+### From Java
 
 ```java
 import com.github.imcamilo.fernet.Fernet;
@@ -94,31 +94,31 @@ if (encrypted.isRight()) {
 }
 ```
 
-## Ejemplos
+## Examples
 
-Revisa el directorio [`examples/`](examples/) para más casos de uso.
+Check out the [`examples/`](examples/) directory for more use cases.
 
-## ¿Cómo funciona?
+## How it works
 
-Fernet usa:
-- **AES-128-CBC** para cifrar
-- **HMAC-SHA256** para firmar
-- **Timestamp** para TTL
-- **Base64 URL** para el token final
+Fernet uses:
+- **AES-128-CBC** for encryption
+- **HMAC-SHA256** for signing
+- **Timestamp** for TTL
+- **Base64 URL** for the final token
 
-El token tiene este formato:
+The token has this format:
 ```
 Version | Timestamp | IV | Ciphertext | HMAC
 1 byte  | 8 bytes   | 16 | Variable   | 32 bytes
 ```
 
-## Casos de uso
+## Use cases
 
-- 🔑 Tokens de sesión
-- 💾 Cifrar datos en DB
-- 🔐 API keys y secrets
-- 📨 Mensajes seguros entre servicios
-- 🎫 Tokens de verificación
+- 🔑 Session tokens
+- 💾 Encrypt database data
+- 🔐 API keys and secrets
+- 📨 Secure messages between services
+- 🎫 Verification tokens
 
 ## Tests
 
@@ -126,70 +126,70 @@ Version | Timestamp | IV | Ciphertext | HMAC
 sbt test
 ```
 
-## Compatibilidad
+## Compatibility
 
 - ✅ Scala 2.13
 - ✅ Java 8+
-- ✅ Kotlin (vía interop Java)
-- 📦 Compatible con [Fernet spec](https://github.com/fernet/spec)
+- ✅ Kotlin (via Java interop)
+- 📦 Compatible with [Fernet spec](https://github.com/fernet/spec)
 
 ## API
 
-| Método | Descripción |
+| Method | Description |
 |--------|-------------|
-| `generateKey()` | Genera una llave aleatoria |
-| `keyToString(key)` | Exporta llave como Base64 |
-| `keyFromString(str)` | Importa llave desde Base64 |
-| `encrypt(text, key)` | Cifra texto |
-| `decrypt(token, key)` | Descifra token |
-| `verify(token, key)` | Verifica sin descifrar |
+| `generateKey()` | Generate a random key |
+| `keyToString(key)` | Export key as Base64 |
+| `keyFromString(str)` | Import key from Base64 |
+| `encrypt(text, key)` | Encrypt text |
+| `decrypt(token, key)` | Decrypt token |
+| `verify(token, key)` | Verify without decrypting |
 
-### Extensiones de sintaxis
+### Syntax extensions
 
 ```scala
 import Fernet.syntax._
 
-key.encrypt("texto")
+key.encrypt("text")
 key.decrypt(token)
 key.toBase64
 "base64string".asFernetKey
 ```
 
-## Errores comunes
+## Common errors
 
 ```scala
-// ❌ No hacer esto
+// ❌ Don't do this
 val result = Fernet.decrypt(token, wrongKey)
 // Left("Signature validation failed.")
 
-// ✅ Hacer esto
+// ✅ Do this
 result match {
-  case Right(data) => println(s"Éxito: $data")
+  case Right(data) => println(s"Success: $data")
   case Left(error) => println(s"Error: $error")
 }
 ```
 
-## Contribuir
+## Contributing
 
-Pull requests bienvenidos!
+Pull requests welcome!
 
 ```bash
-# Fork, clona, crea branch
-git checkout -b mi-feature
+# Fork, clone, create branch
+git checkout -b my-feature
 
-# Haz cambios, agrega tests
+# Make changes, add tests
 sbt test
 
-# Commit y push
-git commit -m "feat: mi feature"
-git push origin mi-feature
+# Commit and push
+git commit -m "feat: my feature"
+git push origin my-feature
 ```
 
-## Licencia
+## License
 
 MIT
 
-## Referencias
+## References
 
 - [Fernet Spec](https://github.com/fernet/spec)
 - [Python Cryptography](https://cryptography.io/en/latest/fernet/)
@@ -198,4 +198,4 @@ MIT
 
 ---
 
-Hecho con ❤️ por [@imcamilo](https://github.com/imcamilo)
+Made with ❤️ by [@imcamilo](https://github.com/imcamilo)
