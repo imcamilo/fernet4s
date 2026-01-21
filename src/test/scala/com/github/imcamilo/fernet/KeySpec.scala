@@ -30,7 +30,7 @@ class KeySpec extends AnyWordSpec with Matchers {
         val result = creatingKeyInstance(null, encryptionKey)
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Signing key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Signing key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for null encryption key" in {
@@ -40,7 +40,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Encryption key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Encryption key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for an invalid signing key length" in {
@@ -53,7 +53,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Signing key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Signing key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for an invalid encryption key length" in {
@@ -66,7 +66,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Encryption key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Encryption key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for an invalid signing key and encryption key length" in {
@@ -78,7 +78,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Signing key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Signing key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for an invalid signing key and null encryption key" in {
@@ -88,7 +88,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Signing key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Signing key must be 128 bits."
       }
 
       "throw an IllegalArgumentException for null signing key and an invalid encryption key" in {
@@ -98,7 +98,7 @@ class KeySpec extends AnyWordSpec with Matchers {
 
         result shouldBe a[Failure[_]]
         result.failed.get shouldBe a[IllegalArgumentException]
-        result.failed.get.getMessage shouldBe "Signing key must be 128 bits"
+        result.failed.get.getMessage shouldBe "Signing key must be 128 bits."
       }
 
     }

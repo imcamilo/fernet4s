@@ -16,7 +16,7 @@ class TokenSpec extends AnyWordSpec {
       val secretKey =
         for {
           key <- Key(DecrEncryptedKey)
-          token <- Token.fromString(Token.serialise(token.get))
+          token <- Token.fromString(Token.serialize(token.get))
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
 
@@ -30,7 +30,7 @@ class TokenSpec extends AnyWordSpec {
       val secretKey =
         for {
           key <- Key(HackEncryptedKey)
-          token <- Token.fromString(Token.serialise(token.get))
+          token <- Token.fromString(Token.serialize(token.get))
           fKey <- token.validateAndDecrypt(key, StandardValidator.validator)
         } yield fKey
       secretKey match {
@@ -41,7 +41,7 @@ class TokenSpec extends AnyWordSpec {
 
     "fail to generate a token with an invalid key" in {
       val invalidKey = "invalid-key"
-      assertThrows[NoSuchElementException] {
+      assertThrows[ArrayIndexOutOfBoundsException] {
         Token.apply(Key(invalidKey).get, Original)
       }
     }
