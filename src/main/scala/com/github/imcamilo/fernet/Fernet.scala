@@ -50,7 +50,7 @@ object Fernet {
     * @return Either an error message or a Key
     */
   def keyFromString(keyString: String): Either[String, Key] = {
-    Key(keyString).toRight("Invalid key format")
+    Try(Key(keyString)).toOption.flatten.toRight("Invalid key format")
   }
 
   /** Encode a Key to Base64 URL string format.
@@ -139,7 +139,12 @@ object Fernet {
       key: Key,
       ttlSeconds: Option[Long] = None
   ): Either[String, Boolean] = {
-    decrypt(tokenString, key, ttlSeconds).map(_ => true)
+    Try {
+      decrypt(tokenString, key, ttlSeconds) match {
+        case Right(_) => Right(true)
+        case Left(err) => Left(err)
+      }
+    }.toOption.getOrElse(Left("Token verification failed"))
   }
 
   /** Create a custom validator with specific TTL.
