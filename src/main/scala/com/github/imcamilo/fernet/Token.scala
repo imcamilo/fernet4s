@@ -2,6 +2,7 @@ package com.github.imcamilo.fernet
 
 import com.github.imcamilo.exceptions.Token4sException
 import com.github.imcamilo.validators.Validator
+import org.slf4j.LoggerFactory
 
 import java.io._
 import java.security.{MessageDigest, SecureRandom}
@@ -232,7 +233,7 @@ object Token {
           hmac
         )
       }
-    }.recoverWith {
+    }.flatten.recoverWith {
       case ioe: IOException =>
         Failure(new IllegalStateException(ioe.getMessage, ioe))
     }

@@ -1,6 +1,7 @@
 package com.github.imcamilo.fernet
 
 import com.github.imcamilo.exceptions.Token4sException
+import org.slf4j.LoggerFactory
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 import java.security.{
@@ -173,7 +174,7 @@ object Key {
               )
           }
         }
-    }.recover {
+    }.flatten.recover {
       case e =>
         throw new IllegalStateException(
           s"Error during signing process: ${e.getMessage}",
