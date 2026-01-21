@@ -1,7 +1,6 @@
 package com.github.imcamilo.fernet
 
 import com.github.imcamilo.validators.{StandardValidator, Validator}
-import cats.implicits._
 import scala.util.Try
 import java.security.SecureRandom
 import java.time.Duration
@@ -204,7 +203,7 @@ object Fernet {
   def encrypt(plainText: String, key: Key): Either[String, String] = {
     for {
       token <- Token(key, plainText).toRight("Failed to create token")
-      tokenString = Token.serialize(token)
+      tokenString <- Token.serialize(token).toOption.toRight("Failed to serialize token")
     } yield tokenString
   }
 
@@ -253,7 +252,7 @@ object Fernet {
   def encryptBytes(payload: Array[Byte], key: Key): Either[String, String] = {
     for {
       token <- Token(new SecureRandom(), key, payload).toRight("Failed to create token")
-      tokenString = Token.serialize(token)
+      tokenString <- Token.serialize(token).toOption.toRight("Failed to serialize token")
     } yield tokenString
   }
 
