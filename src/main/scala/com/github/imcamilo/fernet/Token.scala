@@ -33,10 +33,7 @@ class Token(
   def validateAndDecrypt[A](key: Key, validator: Validator[A]): Option[A] = {
     validator.validateAndDecrypt(key, this) match {
       case Failure(exception) =>
-        logger.error(
-          s"Exception validating and decrypting token: ${exception.getMessage}",
-          exception
-        )
+        logger.debug(s"Token validation failed: ${exception.getMessage}")
         None
       case Success(value) =>
         Option(value)
@@ -144,7 +141,7 @@ object Token {
     )
   }
 
-  def serialize(token: Token): String = {
+  def serialize(token: Token): Try[String] = {
     Using(
       new ByteArrayOutputStream(tokenStaticBytes + token.cipherText.length)
     ) { byteStream =>
@@ -152,9 +149,9 @@ object Token {
       encoder.encodeToString(byteStream.toByteArray)
     }.recover {
       case e: Exception =>
-        logger.error("Error serializing token", e)
-        throw new IllegalStateException(e.getMessage, e)
-    }.get
+        logger.debug(s"Error serializing token: ${e.getMessage}")
+        ""
+    }
   }
 
   def writeTo(outputStream: OutputStream, token: Token): Try[Unit] = {
@@ -194,15 +191,18 @@ object Token {
     *  @return a Token instance, if successfully deserialized
     */
   def fromString(string: String): Option[Token] = {
-    fromBytes(decoder.decode(string)) match {
+    Try(decoder.decode(string)) match {
       case Failure(exception) =>
-        logger.error(
-          s"Exception decoding token from bytes: ${exception.getMessage}",
-          exception
-        )
+        logger.debug(s"Failed to decode Base64 string: ${exception.getMessage}")
         None
-      case Success(value) =>
-        Option(value)
+      case Success(bytes) =>
+        fromBytes(bytes) match {
+          case Failure(exception) =>
+            logger.debug(s"Failed to decode token from bytes: ${exception.getMessage}")
+            None
+          case Success(value) =>
+            Option(value)
+        }
     }
   }
 
@@ -212,7 +212,7 @@ object Token {
     */
   def fromBytes(bytes: Array[Byte]): Try[Token] = {
     if (bytes.length < minimumTokenBytes)
-      throw new Token4sException("Insufficient bytes to generate token.")
+      return Failure(new Token4sException("Insufficient bytes to generate token."))
 
     Using(new ByteArrayInputStream(bytes)) { inputStream =>
       Using(new DataInputStream(inputStream)) { dataStream =>
