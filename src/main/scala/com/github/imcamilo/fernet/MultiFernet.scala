@@ -225,6 +225,15 @@ object MultiFernet {
     }
   }
 
+  /** Create a MultiFernet instance from keys (Java-friendly).
+    *
+    * @param keys variable number of keys (first is primary)
+    * @return a MultiFernet instance
+    */
+  def create(keys: Key*): MultiFernet = {
+    new MultiFernet(keys.toList)
+  }
+
   /** Syntax extensions for MultiFernet. */
   object syntax {
     implicit class MultiKeyOps(val multiFernet: MultiFernet) extends AnyVal {

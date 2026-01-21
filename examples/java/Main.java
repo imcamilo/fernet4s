@@ -4,8 +4,6 @@ import com.github.imcamilo.fernet.Fernet;
 import com.github.imcamilo.fernet.Key;
 import com.github.imcamilo.fernet.MultiFernet;
 import com.github.imcamilo.fernet.Result;
-import scala.collection.immutable.List;
-import scala.collection.immutable.List$;
 
 public class Main {
     public static void main(String[] args) {
@@ -75,8 +73,8 @@ public class Main {
         String encrypted = Fernet.encryptResult("Data for rotation", oldKey).getOrElseValue("");
 
         // Decrypt with MultiFernet (tries both keys)
-        List<Key> keys = List$.MODULE$.<Key>empty().$colon$colon(newKey).$colon$colon(oldKey);
-        MultiFernet multiFernet = new MultiFernet(keys);
+        // First key is primary, then it tries oldKey
+        MultiFernet multiFernet = MultiFernet.create(newKey, oldKey);
 
         Result<String> decryptResult = multiFernet.decryptResult(encrypted);
         String decrypted = decryptResult.getOrElseValue("Error");
