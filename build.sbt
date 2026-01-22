@@ -19,6 +19,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       munit % Test,
       "org.scalatest" %% "scalatest" % "3.2.18" % Test,
+      "io.circe" %% "circe-parser" % "0.14.6" % Test,
       "org.slf4j" % "slf4j-api" % "2.0.12",
       "org.slf4j" % "slf4j-simple" % "2.0.12" % Runtime
     )
