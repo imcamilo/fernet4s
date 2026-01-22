@@ -19,10 +19,25 @@ jobs:
         with:
           java-version: 11
 
-      - name: Publish
-        run: sbt ci-release
+      - name: Setup GPG
+        run: |
+          echo "${{ secrets.PGP_SECRET }}" | base64 --decode | gpg --batch --import
+          gpg --list-keys
+
+      - name: Build and sign artifacts
+        run: sbt +publishSigned
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+
+      - name: Create bundle
+        run: |
+          cd target/sonatype-staging/1.0.0
+          zip -r /tmp/bundle.zip io/
+
+      - name: Upload to Sonatype Central
+        run: |
+          curl --request POST \
+            --verbose \
+            --header 'Authorization: Bearer ${{ secrets.SONATYPE_USERNAME }}:${{ secrets.SONATYPE_PASSWORD }}' \
+            --form bundle=@/tmp/bundle.zip \
+            https://central.sonatype.com/api/v1/publisher/upload
