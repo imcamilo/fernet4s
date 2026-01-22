@@ -566,6 +566,15 @@ val key = Fernet.keyFromString("OM4BvY-hz2MwEfcC1OMUibxwGfVXMFGJQETfIgHb23Y=")
 val decrypted = Fernet.decrypt(pythonToken, key.toOption.get)
 ```
 
+## Specification Compliance
+
+✅ **100% compliant** with the [official Fernet specification](https://github.com/fernet/spec)
+
+All test vectors from the official spec repository pass:
+- ✅ **generate.json** - Token generation with known parameters
+- ✅ **verify.json** - Valid token verification
+- ✅ **invalid.json** - 8 invalid token cases (incorrect MAC, too short, invalid base64, padding errors, expired TTL, clock skew, etc.)
+
 ## Testing
 
 ```bash
@@ -576,7 +585,7 @@ sbt test
 sbt +test
 ```
 
-**71 tests** covering:
+**73 tests** covering:
 - Encryption/decryption
 - Key generation and serialization
 - TTL validation
@@ -584,6 +593,7 @@ sbt +test
 - Cross-language compatibility
 - Error handling
 - Edge cases
+- **Official Fernet spec test vectors**
 
 ## Dependencies
 
