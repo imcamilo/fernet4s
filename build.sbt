@@ -49,3 +49,10 @@ ThisBuild / developers := List(
     url = url("https://github.com/imcamilo")
   )
 )
+
+// GPG signing
+ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
+
+// Sonatype configuration
+import xerial.sbt.Sonatype._
+sonatypeProjectHosting := Some(GitHubHosting("imcamilo", "fernet4s", "imcamilo@users.noreply.github.com"))
