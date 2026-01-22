@@ -26,13 +26,7 @@ lazy val root = (project in file("."))
   )
 
 // Publishing configuration
-ThisBuild / publishTo := {
-  val nexus = "https://s01.oss.sonatype.org/"
-  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
-
-ThisBuild / publishMavenStyle := true
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT"))
 ThisBuild / homepage := Some(url("https://github.com/imcamilo/fernet4s"))
 ThisBuild / scmInfo := Some(
@@ -49,10 +43,3 @@ ThisBuild / developers := List(
     url = url("https://github.com/imcamilo")
   )
 )
-
-// GPG signing
-ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
-
-// Sonatype configuration
-import xerial.sbt.Sonatype._
-sonatypeProjectHosting := Some(GitHubHosting("imcamilo", "fernet4s", "imcamilo@users.noreply.github.com"))
