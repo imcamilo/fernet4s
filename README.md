@@ -154,6 +154,61 @@ if (loadedKey.isSuccess()) {
 }
 ```
 
+## Common Use Cases
+
+### Create a new key
+
+```scala
+val key = Fernet.generateKey()
+```
+
+```java
+Key key = Fernet.generateKey();
+```
+
+### Deserialize an existing key
+
+```scala
+val key = Fernet.keyFromString("cw_0x689RpI-jtRR7oE8h_eQsKImvJapLeSbXpwF4e4=")
+```
+
+```java
+Result<Key> key = Fernet.keyFromString("cw_0x689RpI-jtRR7oE8h_eQsKImvJapLeSbXpwF4e4=");
+```
+
+### Create a token
+
+```scala
+val token = Fernet.encrypt("secret message", key)
+```
+
+```java
+Result<String> token = Fernet.encryptResult("secret message", key);
+```
+
+### Deserialize and validate a token
+
+```scala
+val token = Token.fromString("gAAAAAAdwJ6w...")
+val plaintext = Fernet.decrypt(token.toOption.get, key)
+```
+
+```java
+Result<String> plaintext = Fernet.decryptResult("gAAAAAAdwJ6w...", key);
+```
+
+### Validate with custom TTL
+
+```scala
+// Token valid for 4 hours
+val plaintext = Fernet.decrypt(token, key, Some(Duration.ofHours(4).toSeconds))
+```
+
+```java
+// Token valid for 4 hours
+Result<String> plaintext = Fernet.decryptResult(token, key, 4 * 3600L);
+```
+
 ## Complete Examples
 
 ### Scala 3 - 9 Examples
@@ -583,14 +638,53 @@ val rotated = multi.rotate(oldToken)
 4. **Rotate keys**: Use MultiFernet for gradual migration
 5. **Use TTL**: For time-sensitive data (sessions, reset tokens)
 
+## Storing Sensitive Data
+
+Fernet is ideal for securely storing sensitive data on the client side (e.g., browser cookies, local storage) or transmitting data between services.
+
+**Example: Secure Session Token**
+
+```scala
+// Server side - Create session token
+val sessionData = s"""{"userId": "$userId", "role": "$role"}"""
+val key = Fernet.keyFromString(sys.env("SESSION_KEY")).toOption.get
+val token = Fernet.encrypt(sessionData, key, Some(3600)) // 1 hour TTL
+
+// Client stores token (cookie, localStorage, etc.)
+
+// Later - Validate and extract session
+Fernet.decrypt(token, key, Some(3600)) match
+  case Right(data) =>
+    // Parse JSON and restore session
+  case Left(error) =>
+    // Token expired or invalid
+```
+
+**Example: Encrypted API Key**
+
+```java
+// Store encrypted API key
+String apiKey = "sk_live_abc123...";
+Key fernetKey = Fernet.generateKey();
+Result<String> encrypted = Fernet.encryptResult(apiKey, fernetKey);
+
+// Save encrypted token to database
+database.save(userId, encrypted.get());
+
+// Later, decrypt when needed
+Result<String> decrypted = Fernet.decryptResult(encryptedToken, fernetKey);
+String apiKey = decrypted.get();
+```
+
 ## Use Cases
 
-- 🔐 **Session tokens**: Short-lived authentication tokens
-- 🔑 **API keys**: Encrypted API credentials
-- 📧 **Password reset**: Time-limited reset tokens
-- 💾 **Database encryption**: Sensitive configuration data
-- 🔄 **Service-to-service**: Encrypted messages between microservices
-- 📁 **File encryption**: Secure file storage
+- 🔐 **Session tokens** - Short-lived authentication tokens
+- 🔑 **API keys** - Encrypted API credentials
+- 📧 **Password reset** - Time-limited reset tokens
+- 💾 **Database encryption** - Sensitive configuration data
+- 🔄 **Service-to-service** - Encrypted messages between microservices
+- 📁 **File encryption** - Secure file storage
+- 🍪 **Secure cookies** - Tamper-proof client-side data
 
 ## Cross-Language Compatibility
 
@@ -649,15 +743,63 @@ sbt +test
 
 No other dependencies. Uses JVM built-in crypto (`javax.crypto`).
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+**Development:**
+```bash
+# Compile
+sbt compile
+
+# Run tests
+sbt test
+
+# Cross-compile for Scala 2.13 and 3.3
+sbt +test
+
+# Run examples
+cd examples/scala3 && scala CompleteExample.scala
+cd examples/java && javac Main.java && java Main
+```
+
+See the [examples](examples/) directory for complete working examples.
+
+## Prior Art
+
+- [fernet-java](https://github.com/l0s/fernet-java8) - Java 8 implementation by Carlos Macasaet
+- [cryptography](https://cryptography.io/en/latest/fernet/) - Official Python implementation
+
 ## License
 
-MIT License - see [LICENSE](LICENSE) file
+MIT License
+
+Copyright (c) 2026 Camilo Jorquera
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Resources
 
 - [Fernet Specification](https://github.com/fernet/spec/blob/master/Spec.md)
 - [Python cryptography library](https://cryptography.io/en/latest/fernet/)
 - [Scala 3 Documentation](https://docs.scala-lang.org/scala3/)
+- [Maven Central](https://central.sonatype.com/artifact/io.github.imcamilo/fernet4s_3)
 
 ---
 
