@@ -765,11 +765,6 @@ cd examples/java && javac Main.java && java Main
 
 See the [examples](examples/) directory for complete working examples.
 
-## Prior Art
-
-- [fernet-java](https://github.com/l0s/fernet-java8) - Java 8 implementation by Carlos Macasaet
-- [cryptography](https://cryptography.io/en/latest/fernet/) - Official Python implementation
-
 ## License
 
 MIT License
