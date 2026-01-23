@@ -1,8 +1,10 @@
 # fernet4s
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.imcamilo/fernet4s_3.svg)](https://search.maven.org/artifact/io.github.imcamilo/fernet4s_3)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.imcamilo/fernet4s_3.svg?label=maven%20central)](https://central.sonatype.com/artifact/io.github.imcamilo/fernet4s_3)
+[![Maven Central Downloads](https://img.shields.io/maven-central/dt/io.github.imcamilo/fernet4s_3.svg?label=downloads)](https://central.sonatype.com/artifact/io.github.imcamilo/fernet4s_3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Scala Versions](https://img.shields.io/badge/scala-2.13%20%7C%203.3-red.svg)](https://www.scala-lang.org)
+[![CI](https://github.com/imcamilo/fernet4s/workflows/CI/badge.svg)](https://github.com/imcamilo/fernet4s/actions)
 
 > Symmetric encryption that makes sure your data cannot be manipulated or read without the key.
 
