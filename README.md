@@ -12,17 +12,24 @@
 
 ## Features
 
-- ✅ **AES-128-CBC** encryption + **HMAC-SHA256** authentication
-- ✅ **Type-safe API** with Either/Result types (no exceptions)
-- ✅ **TTL support** for time-limited tokens
-- ✅ **Key rotation** with MultiFernet
-- ✅ **Java/Kotlin friendly** Result API
-- ✅ **Scala 3 syntax extensions** for fluent API
-- ✅ **Cross-language compatible** (Python, Ruby, Go, etc.)
-- ✅ **Zero dependencies** (only stdlib + slf4j)
-- ✅ **Fully functional** (no uncontrolled exceptions)
+- ✅ **100% spec compliant** - Fully validated against the [official Fernet specification](https://github.com/fernet/spec)
+- ✅ **Type-safe API** - Uses Either/Result types instead of exceptions
+- ✅ **Zero dependencies** - Only uses JVM standard library + SLF4J for logging
+- ✅ **Cross-language compatible** - Tokens work with Python, Ruby, Go, and other Fernet implementations
+- ✅ **AES-128-CBC encryption** - Strong symmetric encryption
+- ✅ **HMAC-SHA256 authentication** - Ensures integrity and authenticity
+- ✅ **TTL support** - Time-limited tokens for security (configurable time-to-live)
+- ✅ **Key rotation** - Seamless key migration with MultiFernet
+- ✅ **Java/Kotlin friendly** - Result API for Java interoperability
+- ✅ **Scala 3 extensions** - Fluent syntax for idiomatic Scala code
+- ✅ **Functional** - No uncontrolled exceptions, pure functions
+- ✅ **Cross-compiled** - Scala 2.13 and Scala 3.3 support
 
-## Installation
+## Adding this to your project
+
+This library is available in [Maven Central](https://central.sonatype.com/artifact/io.github.imcamilo/fernet4s_3).
+
+**Requirements:** Java 11 or higher
 
 ### Scala (sbt)
 
@@ -57,6 +64,10 @@ dependencies {
     <version>3.3.3</version>
 </dependency>
 ```
+
+For more details, see [Maven Central Repository](https://central.sonatype.com/artifact/io.github.imcamilo/fernet4s_3).
+
+Alternatively, you can download the latest JAR from [Maven Central](https://repo1.maven.org/maven2/io/github/imcamilo/fernet4s_3/1.0.0/) and add it to your classpath.
 
 ## Quick Start
 
@@ -106,6 +117,40 @@ Result<String> result = Fernet.encryptResult("Hello, Fernet!", key)
 
 if (result.isSuccess()) {
     System.out.println("Decrypted: " + result.get());
+}
+```
+
+### Key Persistence
+
+**Save and reload keys securely:**
+
+```scala
+// Scala - Generate and save
+val key = Fernet.generateKey()
+val keyString = Fernet.keyToString(key)
+// Save to .env, secrets manager, etc.
+// FERNET_KEY=OM4BvY-hz2MwEfcC1OMUibxwGfVXMFGJQETfIgHb23Y=
+
+// Later, load from environment
+val loadedKey = Fernet.keyFromString(sys.env("FERNET_KEY"))
+loadedKey match
+  case Right(key) => // Use key
+  case Left(error) => // Handle error
+```
+
+```java
+// Java - Generate and save
+Key key = Fernet.generateKey();
+String keyString = Fernet.keyToString(key);
+// Save to environment or secrets manager
+// FERNET_KEY=OM4BvY-hz2MwEfcC1OMUibxwGfVXMFGJQETfIgHb23Y=
+
+// Later, load from environment
+String envKey = System.getenv("FERNET_KEY");
+Result<Key> loadedKey = Fernet.keyFromString(envKey);
+if (loadedKey.isSuccess()) {
+    Key key = loadedKey.get();
+    // Use key
 }
 ```
 
